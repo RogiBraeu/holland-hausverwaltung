@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏡 Hausverwaltung Ferienhaus</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sand: #f5f0e8;
+    --sand2: #ede6d6;
+    --sea: #2a6b8a;
+    --sea2: #1d4e66;
+    --sea-light: #e8f4f8;
+    --accent: #e07b3a;
+    --accent2: #c96a2a;
+    --green: #3a8a5a;
+    --red: #c0392b;
+    --text: #2c2c2c;
+    --muted: #7a7a6a;
+    --border: #ddd5c0;
+    --card: #ffffff;
+    --shadow: 0 2px 12px rgba(42,107,138,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--sand);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, var(--sea2) 0%, var(--sea) 100%);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px 10px;
+  }
+  .header-icon { font-size: 28px; }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .header-title span {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 12px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.65);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-bottom: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab.active {
+    background: var(--sand);
+    color: var(--sea2);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .tab:hover:not(.active) { background: rgba(255,255,255,0.15); color: #fff; }
+
+  /* MAIN */
+  .main { padding: 16px; max-width: 700px; margin: 0 auto; }
+
+  /* CARD */
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .card-title {
+    background: linear-gradient(135deg, var(--sea-light), #fff);
+    padding: 12px 16px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    color: var(--sea2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-body { padding: 16px; }
+
+  /* FIELDS */
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--sand);
+    outline: none;
+    transition: border 0.15s;
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--sea);
+    background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* BETRAG */
+  .betrag-wrap { position: relative; }
+  .betrag-wrap input { padding-left: 28px; }
+  .betrag-wrap::before {
+    content: '€';
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sea);
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    color: var(--sea);
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--sea-light); border-color: var(--sea); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--sea), var(--sea2));
+    color: #fff;
+    border-color: var(--sea2);
+  }
+  .btn-primary:hover { background: linear-gradient(135deg, var(--sea2), #163d52); }
+  .btn-accent {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border-color: var(--accent2);
+  }
+  .btn-danger { color: var(--red); border-color: #f5c0b8; }
+  .btn-danger:hover { background: #fdf0ee; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* LISTE */
+  .entry-list { display: flex; flex-direction: column; gap: 8px; }
+  .entry-item {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    align-items: start;
+    transition: border 0.15s;
+  }
+  .entry-item:hover { border-color: var(--sea); }
+  .entry-date {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .entry-desc {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-top: 2px;
+  }
+  .entry-cat {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .cat-energie { background: #fff3cd; color: #856404; }
+  .cat-steuern { background: #f8d7da; color: #721c24; }
+  .cat-reparatur { background: #d4edda; color: #155724; }
+  .cat-garten { background: #d1f0e0; color: #0f5132; }
+  .cat-gebühren { background: #cfe2ff; color: #084298; }
+  .cat-sonstiges { background: #e2e3e5; color: #383d41; }
+  .entry-betrag {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--sea2);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .entry-delete {
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+  .entry-delete:hover { color: var(--red); background: #fdf0ee; }
+
+  /* SUMME */
+  .summe-box {
+    background: linear-gradient(135deg, var(--sea2), var(--sea));
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .summe-label { font-size: 12px; font-weight: 500; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summe-value { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; }
+  .summe-count { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+
+  /* FILTER */
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .filter-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    color: var(--muted);
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .filter-chip.active { background: var(--sea); color: #fff; border-color: var(--sea); }
+
+  /* LEER */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 8px; }
+  .empty-text { font-size: 14px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--sea2);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 480px) {
+    .field-row { grid-template-columns: 1fr; }
+    .summe-value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-icon">🏡</div>
+    <div class="header-title">
+      Ferienhaus Holland
+      <span>Ausgabenverwaltung</span>
+    </div>
+  </div>
+  <div class="tabs" id="tabs">
+    <div class="tab active" onclick="setTab(0)">➕ Neue Ausgabe</div>
+    <div class="tab" onclick="setTab(1)">📋 Alle Ausgaben</div>
+    <div class="tab" onclick="setTab(2)">📊 Excel Export</div>
+  </div>
+</div>
+
+<div class="main" id="main"></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+
+const SUPA_URL = 'https://mcjtxlgyzsbkycdrspyh.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1janR4bGd5enNia3ljZHJzcHloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkwNDYsImV4cCI6MjA4ODk3NTA0Nn0.XWrECG7p3jrp0UPt-Q8KALtN1JWsEcgH0b0bdzIC6Tk';
+const SUPA_TABLE = 'ausgaben';
+
+const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'Sonstiges'];
+
+let activeTab = 0;
+let filterKat = 'Alle';
+let eintraege = [];
+
+// ── SUPABASE ──────────────────────────────────────────────────────────────
+async function loadAusgaben() {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?order=datum.desc`, {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    });
+    if (!res.ok) { console.warn('Supabase Fehler', res.status); return getLokal(); }
+    const rows = await res.json();
+    eintraege = rows;
+    saveLokal(rows);
+    return rows;
+  } catch(e) { return getLokal(); }
+}
+
+async function saveAusgabe(entry) {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(entry)
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Supabase Fehler:', err);
+      return null;
+    }
+    const rows = await res.json();
+    return rows[0];
+  } catch(e) { return null; }
+}
+
+async function deleteAusgabe(id) {
+  try {
+    await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    });
+  } catch(e) {}
+}
+
+// ── LOKAL CACHE ───────────────────────────────────────────────────────────
+function getLokal() {
+  try { return JSON.parse(localStorage.getItem('hausverwaltung') || '[]'); } catch { return []; }
+}
+function saveLokal(data) {
+  try { localStorage.setItem('hausverwaltung', JSON.stringify(data)); } catch {}
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function setTab(i) {
+  activeTab = i;
+  document.querySelectorAll('.tab').forEach((t, idx) => {
+    t.classList.toggle('active', idx === i);
+  });
+  render();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render() {
+  const main = document.getElementById('main');
+  if (activeTab === 0) main.innerHTML = renderEingabe();
+  else if (activeTab === 1) { renderListe(main); }
+  else main.innerHTML = renderExport();
+}
+
+function renderEingabe() {
+  const heute = new Date().toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
+  return `
+  <div class="card">
+    <div class="card-title">✏️ Neue Ausgabe erfassen</div>
+    <div class="card-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Datum</label>
+          <input type="text" id="f_datum" placeholder="TT.MM.JJJJ" value="${heute}" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>Betrag (€)</label>
+          <div class="betrag-wrap">
+            <input type="number" id="f_betrag" placeholder="0,00" inputmode="decimal" step="0.01" min="0">
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Kategorie</label>
+        <select id="f_kategorie">
+          <option value="">— bitte wählen —</option>
+          ${KATEGORIEN.map(k => `<option value="${k}">${k}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Beschreibung</label>
+        <textarea id="f_beschreibung" placeholder="Was wurde bezahlt? (optional)"></textarea>
+      </div>
+      <div class="field">
+        <label>Von <span style="font-weight:300;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <input type="text" id="f_von" placeholder="z.B. Name...">
+      </div>
+      <div class="btn-row" style="margin-top:4px;">
+        <button class="btn btn-primary" onclick="speichern()">💾 Ausgabe speichern</button>
+        <button class="btn" onclick="felder_leeren()">↺ Leeren</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function speichern() {
+  const datum = document.getElementById('f_datum').value.trim();
+  const betrag = parseFloat(document.getElementById('f_betrag').value);
+  const kategorie = document.getElementById('f_kategorie').value;
+  const beschreibung = document.getElementById('f_beschreibung').value.trim();
+  const von = document.getElementById('f_von').value.trim();
+
+  if (!datum) { toast('⚠️ Bitte Datum eingeben'); return; }
+  if (!betrag || betrag <= 0) { toast('⚠️ Bitte gültigen Betrag eingeben'); return; }
+  // Kategorie optional
+
+  const entry = { datum, betrag, kategorie, beschreibung, von };
+  const saved = await saveAusgabe(entry);
+  if (saved) {
+    eintraege.unshift(saved);
+    saveLokal(eintraege);
+    toast('✅ Ausgabe gespeichert!');
+    felder_leeren();
+  } else {
+    // Lokal speichern als Fallback
+    entry.id = Date.now();
+    eintraege.unshift(entry);
+    saveLokal(eintraege);
+    toast('✅ Lokal gespeichert (offline)');
+    felder_leeren();
+  }
+}
+
+function felder_leeren() {
+  document.getElementById('f_betrag').value = '';
+  document.getElementById('f_kategorie').value = '';
+  document.getElementById('f_beschreibung').value = '';
+  document.getElementById('f_von').value = '';
+}
+
+async function renderListe(main) {
+  main.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Lade Einträge...</div></div>';
+  await loadAusgaben();
+
+  const gefiltert = filterKat === 'Alle' ? eintraege : eintraege.filter(e => e.kategorie === filterKat);
+  const summe = gefiltert.reduce((a, e) => a + parseFloat(e.betrag || 0), 0);
+
+  main.innerHTML = `
+  <div class="summe-box">
+    <div>
+      <div class="summe-label">Gesamtausgaben</div>
+      <div class="summe-count">${gefiltert.length} Eintrag${gefiltert.length !== 1 ? 'e' : ''}${filterKat !== 'Alle' ? ' · ' + filterKat : ''}</div>
+    </div>
+    <div class="summe-value">${summe.toFixed(2).replace('.',',')} €</div>
+  </div>
+
+  <div class="filter-row">
+    ${['Alle', ...KATEGORIEN].map(k => `
+      <div class="filter-chip ${filterKat===k?'active':''}" onclick="setFilter('${k}')">${k}</div>
+    `).join('')}
+  </div>
+
+  <div class="entry-list">
+    ${gefiltert.length === 0 ? `
+      <div class="empty">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">Keine Einträge vorhanden</div>
+      </div>` :
+      gefiltert.map(e => `
+        <div class="entry-item">
+          <div>
+            <div class="entry-date">${e.datum}${e.von ? ' · ' + e.von : ''}</div>
+            <div class="entry-desc">${e.beschreibung || e.kategorie}</div>
+            <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase()}">${e.kategorie || '–'}</span>
+          </div>
+          <div>
+            <div class="entry-betrag">${parseFloat(e.betrag||0).toFixed(2).replace('.',',')} €</div>
+            <div class="entry-delete" onclick="loeschen('${e.id}')">🗑</div>
+          </div>
+        </div>
+      `).join('')
+    }
+  </div>`;
+}
+
+function setFilter(kat) {
+  filterKat = kat;
+  const main = document.getElementById('main');
+  renderListe(main);
+}
+
+async function loeschen(id) {
+  if (!confirm('Eintrag wirklich löschen?')) return;
+  await deleteAusgabe(id);
+  eintraege = eintraege.filter(e => String(e.id) !== String(id));
+  saveLokal(eintraege);
+  toast('🗑 Eintrag gelöscht');
+  renderListe(document.getElementById('main'));
+}
+
+function renderExport() {
+  const summe = eintraege.reduce((a, e) => a + parseFloat(e.betrag || 0), 0);
+  const perKat = {};
+  KATEGORIEN.forEach(k => perKat[k] = 0);
+  eintraege.forEach(e => { if (perKat[e.kategorie] !== undefined) perKat[e.kategorie] += parseFloat(e.betrag||0); });
+
+  return `
+  <div class="card">
+    <div class="card-title">📊 Excel Export</div>
+    <div class="card-body">
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          Alle <strong>${eintraege.length} Einträge</strong> werden als Excel-Liste exportiert – bereit zum Abgleich.
+        </div>
+        ${KATEGORIEN.map(k => `
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <span><span class="entry-cat cat-${k.toLowerCase()}">${k}</span></span>
+            <strong>${perKat[k].toFixed(2).replace('.',',')} €</strong>
+          </div>
+        `).join('')}
+        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--sea2);">
+          <span>Gesamt</span>
+          <span>${summe.toFixed(2).replace('.',',')} €</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-accent" onclick="exportExcel()">📥 Excel herunterladen</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function exportExcel() {
+  if (eintraege.length === 0) { toast('⚠️ Keine Einträge vorhanden'); return; }
+
+  const rows = eintraege.map(e => ({
+    'Datum': e.datum,
+    'Kategorie': e.kategorie || '',
+    'Beschreibung': e.beschreibung || '',
+    'Betrag (€)': parseFloat(e.betrag || 0),
+    'Bezahlt von': e.von || ''
+  }));
+
+  // Summenzeile
+  rows.push({
+    'Datum': '',
+    'Kategorie': 'GESAMT',
+    'Beschreibung': '',
+    'Betrag (€)': eintraege.reduce((a, e) => a + parseFloat(e.betrag||0), 0),
+    'Bezahlt von': ''
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:12},{wch:14},{wch:40},{wch:12},{wch:16}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ausgaben');
+
+  const jahr = new Date().getFullYear();
+  XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_${jahr}.xlsx`);
+  toast('📥 Excel heruntergeladen!');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+eintraege = getLokal();
+render();
+</script>
+</body>
+</html>
