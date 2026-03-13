@@ -388,6 +388,7 @@ async function saveAusgabe(entry) {
     if (!res.ok) {
       const err = await res.text();
       console.error('Supabase Fehler:', err);
+      alert('Supabase Fehler ' + res.status + ': ' + err);
       return null;
     }
     const rows = await res.json();
