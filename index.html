@@ -233,6 +233,7 @@
   .cat-garten { background: #d1f0e0; color: #0f5132; }
   .cat-gebühren { background: #cfe2ff; color: #084298; }
   .cat-sonstiges { background: #e2e3e5; color: #383d41; }
+  .cat-anschaffungen { background: #e8d5f5; color: #5a1f8a; }
   .entry-betrag {
     font-family: 'Playfair Display', serif;
     font-size: 17px;
@@ -353,7 +354,7 @@ const SUPA_URL = 'https://mcjtxlgyzsbkycdrspyh.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1janR4bGd5enNia3ljZHJzcHloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkwNDYsImV4cCI6MjA4ODk3NTA0Nn0.XWrECG7p3jrp0UPt-Q8KALtN1JWsEcgH0b0bdzIC6Tk';
 const SUPA_TABLE = 'ausgaben';
 
-const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'Sonstiges'];
+const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'Anschaffungen', 'Sonstiges'];
 
 let activeTab = 0;
 let filterKat = 'Alle';
@@ -548,7 +549,7 @@ async function renderListe(main) {
           <div>
             <div class="entry-date">${e.datum}${e.von ? ' · ' + e.von : ''}</div>
             <div class="entry-desc">${e.beschreibung || e.kategorie}</div>
-            <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase()}">${e.kategorie || '–'}</span>
+            <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase()}">${e.kategorie || 'Sonstiges'}</span>
           </div>
           <div>
             <div class="entry-betrag">${Math.abs(parseFloat(e.betrag||0)).toFixed(2).replace('.',',')} €</div>
@@ -605,7 +606,7 @@ function renderExport() {
   const summe = eintraege.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
   const perKat = {};
   KATEGORIEN.forEach(k => perKat[k] = 0);
-  eintraege.forEach(e => { if (perKat[e.kategorie] !== undefined) perKat[e.kategorie] += Math.abs(parseFloat(e.betrag||0)); });
+  eintraege.forEach(e => { const kat = e.kategorie || 'Sonstiges'; if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0)); });
 
   return `
   <div class="card">
@@ -615,15 +616,15 @@ function renderExport() {
         <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
           Alle <strong>${eintraege.length} Einträge</strong> werden als Excel-Liste exportiert – bereit zum Abgleich.
         </div>
-        ${KATEGORIEN.map(k => `
+        ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
             <span><span class="entry-cat cat-${k.toLowerCase()}">${k}</span></span>
-            <strong>${perKat[k].toFixed(2).replace('.',',')} €</strong>
+            <strong>−${perKat[k].toFixed(2).replace('.',',')} €</strong>
           </div>
         `).join('')}
         <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--sea2);">
           <span>Gesamt</span>
-          <span>${summe.toFixed(2).replace('.',',')} €</span>
+          <span>−${summe.toFixed(2).replace('.',',')} €</span>
         </div>
       </div>
       <div class="btn-row">
@@ -638,7 +639,7 @@ function exportExcel() {
 
   const rows = eintraege.map(e => ({
     'Datum': e.datum,
-    'Kategorie': e.kategorie || '',
+    'Kategorie': e.kategorie || 'Sonstiges',
     'Beschreibung': e.beschreibung || '',
     'Betrag (€)': parseFloat(e.betrag || 0),
     'Bezahlt von': e.von || ''
