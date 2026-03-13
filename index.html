@@ -366,15 +366,13 @@ async function loadAusgaben() {
       headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
     });
     if (!res.ok) { 
-      const err = await res.text();
-      alert('Laden Fehler ' + res.status + ': ' + err);
       return getLokal(); 
     }
     const rows = await res.json();
     eintraege = rows;
     saveLokal(rows);
     return rows;
-  } catch(e) { alert('Verbindungsfehler: ' + e.message); return getLokal(); }
+  } catch(e) { return getLokal(); }
 }
 
 async function saveAusgabe(entry) {
@@ -392,12 +390,11 @@ async function saveAusgabe(entry) {
     if (!res.ok) {
       const err = await res.text();
       console.error('Supabase Fehler:', err);
-      alert('Supabase Fehler ' + res.status + ': ' + err);
       return null;
     }
     const rows = await res.json();
     return rows[0];
-  } catch(e) { alert('Speicherfehler: ' + e.message); return null; }
+  } catch(e) { return null; }
 }
 
 async function deleteAusgabe(id) {
@@ -494,7 +491,7 @@ async function speichern() {
   if (!betrag || betrag <= 0) { toast('⚠️ Bitte gültigen Betrag eingeben'); return; }
   // Kategorie optional
 
-  const entry = { datum, betrag, kategorie, beschreibung, von };
+  const entry = { datum, betrag: -Math.abs(betrag), kategorie, beschreibung, von };
   const saved = await saveAusgabe(entry);
   if (saved) {
     eintraege.unshift(saved);
@@ -523,7 +520,7 @@ async function renderListe(main) {
   await loadAusgaben();
 
   const gefiltert = filterKat === 'Alle' ? eintraege : eintraege.filter(e => e.kategorie === filterKat);
-  const summe = gefiltert.reduce((a, e) => a + parseFloat(e.betrag || 0), 0);
+  const summe = gefiltert.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
 
   main.innerHTML = `
   <div class="summe-box">
@@ -554,8 +551,11 @@ async function renderListe(main) {
             <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase()}">${e.kategorie || '–'}</span>
           </div>
           <div>
-            <div class="entry-betrag">${parseFloat(e.betrag||0).toFixed(2).replace('.',',')} €</div>
+            <div class="entry-betrag">${Math.abs(parseFloat(e.betrag||0)).toFixed(2).replace('.',',')} €</div>
+            <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px;">
+            <div class="entry-delete" style="color:var(--sea);" onclick="bearbeiten('${e.id}')">✏️</div>
             <div class="entry-delete" onclick="loeschen('${e.id}')">🗑</div>
+          </div>
           </div>
         </div>
       `).join('')
@@ -569,6 +569,29 @@ function setFilter(kat) {
   renderListe(main);
 }
 
+function bearbeiten(id) {
+  const e = eintraege.find(x => String(x.id) === String(id));
+  if (!e) return;
+  setTab(0);
+  setTimeout(() => {
+    document.getElementById('f_datum').value = e.datum || '';
+    document.getElementById('f_betrag').value = Math.abs(parseFloat(e.betrag||0));
+    document.getElementById('f_kategorie').value = e.kategorie || '';
+    document.getElementById('f_beschreibung').value = e.beschreibung || '';
+    document.getElementById('f_von').value = e.von || '';
+    // Speichern-Button zu Update ändern
+    const btn = document.querySelector('.btn.btn-primary');
+    btn.textContent = '💾 Eintrag aktualisieren';
+    btn.onclick = async () => {
+      await deleteAusgabe(id);
+      eintraege = eintraege.filter(x => String(x.id) !== String(id));
+      btn.textContent = '💾 Ausgabe speichern';
+      btn.onclick = speichern;
+      await speichern();
+    };
+  }, 50);
+}
+
 async function loeschen(id) {
   if (!confirm('Eintrag wirklich löschen?')) return;
   await deleteAusgabe(id);
@@ -579,10 +602,10 @@ async function loeschen(id) {
 }
 
 function renderExport() {
-  const summe = eintraege.reduce((a, e) => a + parseFloat(e.betrag || 0), 0);
+  const summe = eintraege.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
   const perKat = {};
   KATEGORIEN.forEach(k => perKat[k] = 0);
-  eintraege.forEach(e => { if (perKat[e.kategorie] !== undefined) perKat[e.kategorie] += parseFloat(e.betrag||0); });
+  eintraege.forEach(e => { if (perKat[e.kategorie] !== undefined) perKat[e.kategorie] += Math.abs(parseFloat(e.betrag||0)); });
 
   return `
   <div class="card">
