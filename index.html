@@ -291,6 +291,13 @@
     letter-spacing: 0.3px;
   }
   .filter-chip.active { background: var(--sea); color: #fff; border-color: var(--sea); }
+  .filter-chip.cat-energie.active  { background: #856404; color: #fff; border-color: #856404; }
+  .filter-chip.cat-steuern.active  { background: #721c24; color: #fff; border-color: #721c24; }
+  .filter-chip.cat-reparatur.active { background: #155724; color: #fff; border-color: #155724; }
+  .filter-chip.cat-garten.active   { background: #0f5132; color: #fff; border-color: #0f5132; }
+  .filter-chip.cat-gebühren.active { background: #084298; color: #fff; border-color: #084298; }
+  .filter-chip.cat-anschaffungen.active { background: #5a1f8a; color: #fff; border-color: #5a1f8a; }
+  .filter-chip.cat-sonstiges.active { background: #383d41; color: #fff; border-color: #383d41; }
 
   /* LEER */
   .empty {
@@ -389,7 +396,8 @@
   <div class="tabs" id="tabs">
     <div class="tab active" onclick="setTab(0)">➕ Neue Ausgabe</div>
     <div class="tab" onclick="setTab(1)">📋 Alle Ausgaben</div>
-    <div class="tab" onclick="setTab(2)">📊 Excel Export</div>
+    <div class="tab" onclick="setTab(2)">📅 Nach Jahr</div>
+    <div class="tab" onclick="setTab(3)">📊 Excel Export</div>
   </div>
 </div>
 
@@ -515,6 +523,7 @@ const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'A
 
 let activeTab = 0;
 let filterKat = 'Alle';
+let filterJahr = 'Alle';
 let eintraege = [];
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────
@@ -579,6 +588,7 @@ function render() {
   const main = document.getElementById('main');
   if (activeTab === 0) main.innerHTML = renderEingabe();
   else if (activeTab === 1) { renderListe(main); }
+  else if (activeTab === 2) { renderJahrAnsicht(main); }
   else main.innerHTML = renderExport();
 }
 
@@ -658,26 +668,59 @@ function felder_leeren() {
   document.getElementById('f_von').value = '';
 }
 
-async function renderListe(main) {
-  main.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Lade Einträge...</div></div>';
-  await loadAusgaben();
+function getJahre() {
+  return [...new Set(eintraege.map(e => {
+    if (!e.datum) return null;
+    const parts = e.datum.split('.');
+    return parts.length === 3 ? parts[2] : null;
+  }).filter(Boolean))].sort((a,b) => b - a);
+}
 
-  const gefiltert = filterKat === 'Alle' ? eintraege : eintraege.filter(e => e.kategorie === filterKat);
+function entryJahr(e) {
+  if (!e.datum) return null;
+  const parts = e.datum.split('.');
+  return parts.length === 3 ? parts[2] : null;
+}
+
+async function renderListe(main, reload = true) {
+  if (reload) {
+    main.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Lade Einträge...</div></div>';
+    await loadAusgaben();
+  }
+
+  const jahre = getJahre();
+  if (filterJahr !== 'Alle' && !jahre.includes(filterJahr)) filterJahr = 'Alle';
+
+  let gefiltert = eintraege;
+  if (filterJahr !== 'Alle') gefiltert = gefiltert.filter(e => entryJahr(e) === filterJahr);
+  if (filterKat !== 'Alle') gefiltert = gefiltert.filter(e => e.kategorie === filterKat);
   const summe = gefiltert.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
 
   main.innerHTML = `
   <div class="summe-box">
     <div>
       <div class="summe-label">Gesamtausgaben</div>
-      <div class="summe-count">${gefiltert.length} Eintrag${gefiltert.length !== 1 ? 'e' : ''}${filterKat !== 'Alle' ? ' · ' + filterKat : ''}</div>
+      <div class="summe-count">${gefiltert.length} Eintrag${gefiltert.length !== 1 ? 'e' : ''}${filterKat !== 'Alle' ? ' · ' + filterKat : ''}${filterJahr !== 'Alle' ? ' · ' + filterJahr : ''}</div>
     </div>
     <div class="summe-value">${summe.toFixed(2).replace('.',',')} €</div>
   </div>
 
+  ${jahre.length > 1 ? `
   <div class="filter-row">
-    ${['Alle', ...KATEGORIEN].map(k => `
-      <div class="filter-chip ${filterKat===k?'active':''}" onclick="setFilter('${k}')">${k}</div>
+    ${['Alle', ...jahre].map(j => `
+      <div class="filter-chip ${filterJahr===j?'active':''}" onclick="setFilterJahr('${j}')">${j === 'Alle' ? '📅 Alle Jahre' : j}</div>
     `).join('')}
+  </div>` : ''}
+
+  <div class="filter-row">
+    <div class="filter-chip ${filterKat==='Alle'?'active':''}" onclick="setFilter('Alle')">Alle</div>
+    <div class="filter-chip cat-energie ${filterKat==='Energie'?'active':''}" onclick="setFilter('Energie')" style="${filterKat==='Energie'?'':'opacity:0.85;'}">Energie</div>
+    <div class="filter-chip cat-steuern ${filterKat==='Steuern'?'active':''}" onclick="setFilter('Steuern')" style="${filterKat==='Steuern'?'':'opacity:0.85;'}">Steuern</div>
+    <div class="filter-chip cat-reparatur ${filterKat==='Reparatur'?'active':''}" onclick="setFilter('Reparatur')" style="${filterKat==='Reparatur'?'':'opacity:0.85;'}">Reparatur</div>
+    <div class="filter-chip cat-garten ${filterKat==='Garten'?'active':''}" onclick="setFilter('Garten')" style="${filterKat==='Garten'?'':'opacity:0.85;'}">Garten</div>
+    <div class="filter-chip cat-gebühren ${filterKat==='Gebühren'?'active':''}" onclick="setFilter('Gebühren')" style="${filterKat==='Gebühren'?'':'opacity:0.85;'}">Gebühren</div>
+    <div class="filter-chip cat-anschaffungen ${filterKat==='Anschaffungen'?'active':''}" onclick="setFilter('Anschaffungen')" style="${filterKat==='Anschaffungen'?'':'opacity:0.85;'}">Anschaffungen</div>
+    <div class="filter-chip cat-sonstiges ${filterKat==='Sonstiges'?'active':''}" onclick="setFilter('Sonstiges')" style="${filterKat==='Sonstiges'?'':'opacity:0.85;'}">Sonstiges</div>
   </div>
 
   <div class="entry-list">
@@ -706,10 +749,71 @@ async function renderListe(main) {
   </div>`;
 }
 
+async function renderJahrAnsicht(main) {
+  main.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Lade Einträge...</div></div>';
+  await loadAusgaben();
+
+  const jahre = getJahre();
+  if (jahre.length === 0) {
+    main.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Noch keine Einträge vorhanden</div></div>';
+    return;
+  }
+
+  let html = '';
+  jahre.forEach(jahr => {
+    const eintraege_jahr = eintraege.filter(e => entryJahr(e) === jahr);
+    const summe = eintraege_jahr.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+    const perKat = {};
+    KATEGORIEN.forEach(k => perKat[k] = 0);
+    eintraege_jahr.forEach(e => {
+      const kat = e.kategorie || 'Sonstiges';
+      if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0));
+    });
+
+    html += `
+    <div class="card">
+      <div class="card-title">📅 ${jahr}
+        <span style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent);">${eintraege_jahr.length} Einträge</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--border);">
+          <span style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Gesamt ${jahr}</span>
+          <span style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--sea2);">−${summe.toFixed(2).replace('.',',')} €</span>
+        </div>
+        ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <span class="entry-cat cat-${k.toLowerCase()}">${k}</span>
+            <strong style="color:var(--sea2);">−${perKat[k].toFixed(2).replace('.',',')} €</strong>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  });
+
+  // Gesamtübersicht über alle Jahre
+  const gesamtSumme = eintraege.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+  html = `
+  <div class="summe-box" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">
+    <div>
+      <div class="summe-label">Gesamtübersicht alle Jahre</div>
+      <div class="summe-count">${eintraege.length} Einträge · ${jahre.length} Jahr${jahre.length !== 1 ? 'e' : ''}</div>
+    </div>
+    <div class="summe-value">−${gesamtSumme.toFixed(2).replace('.',',')} €</div>
+  </div>` + html;
+
+  main.innerHTML = html;
+}
+
 function setFilter(kat) {
   filterKat = kat;
   const main = document.getElementById('main');
-  renderListe(main);
+  renderListe(main, false);
+}
+
+function setFilterJahr(jahr) {
+  filterJahr = jahr;
+  const main = document.getElementById('main');
+  renderListe(main, false);
 }
 
 function bearbeiten(id) {
@@ -741,22 +845,36 @@ async function loeschen(id) {
   eintraege = eintraege.filter(e => String(e.id) !== String(id));
   saveLokal(eintraege);
   toast('🗑 Eintrag gelöscht');
-  renderListe(document.getElementById('main'));
+  renderListe(document.getElementById('main'), false);
 }
 
 function renderExport() {
-  const summe = eintraege.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+  const jahre = getJahre();
+  let exportJahr = window._exportJahr || 'Alle';
+  if (exportJahr !== 'Alle' && !jahre.includes(exportJahr)) exportJahr = 'Alle';
+
+  const gefiltert = exportJahr === 'Alle' ? eintraege : eintraege.filter(e => entryJahr(e) === exportJahr);
+  const summe = gefiltert.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
   const perKat = {};
   KATEGORIEN.forEach(k => perKat[k] = 0);
-  eintraege.forEach(e => { const kat = e.kategorie || 'Sonstiges'; if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0)); });
+  gefiltert.forEach(e => { const kat = e.kategorie || 'Sonstiges'; if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0)); });
 
   return `
   <div class="card">
     <div class="card-title">📊 Excel Export</div>
     <div class="card-body">
+      ${jahre.length > 1 ? `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Jahr auswählen</div>
+        <div class="filter-row">
+          ${['Alle', ...jahre].map(j => `
+            <div class="filter-chip ${exportJahr===j?'active':''}" onclick="setExportJahr('${j}')">${j === 'Alle' ? '📅 Alle Jahre' : j}</div>
+          `).join('')}
+        </div>
+      </div>` : ''}
       <div style="margin-bottom:16px;">
         <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
-          Alle <strong>${eintraege.length} Einträge</strong> werden als Excel-Liste exportiert – bereit zum Abgleich.
+          <strong>${gefiltert.length} Einträge</strong>${exportJahr !== 'Alle' ? ' aus ' + exportJahr : ''} werden als Excel-Liste exportiert.
         </div>
         ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
@@ -776,10 +894,17 @@ function renderExport() {
   </div>`;
 }
 
-function exportExcel() {
-  if (eintraege.length === 0) { toast('⚠️ Keine Einträge vorhanden'); return; }
+function setExportJahr(jahr) {
+  window._exportJahr = jahr;
+  document.getElementById('main').innerHTML = renderExport();
+}
 
-  const rows = eintraege.map(e => ({
+function exportExcel() {
+  const exportJahr = window._exportJahr || 'Alle';
+  const gefiltert = exportJahr === 'Alle' ? eintraege : eintraege.filter(e => entryJahr(e) === exportJahr);
+  if (gefiltert.length === 0) { toast('⚠️ Keine Einträge vorhanden'); return; }
+
+  const rows = gefiltert.map(e => ({
     'Datum': e.datum,
     'Kategorie': e.kategorie || 'Sonstiges',
     'Beschreibung': e.beschreibung || '',
@@ -787,12 +912,11 @@ function exportExcel() {
     'Bezahlt von': e.von || ''
   }));
 
-  // Summenzeile
   rows.push({
     'Datum': '',
     'Kategorie': 'GESAMT',
     'Beschreibung': '',
-    'Betrag (€)': eintraege.reduce((a, e) => a + parseFloat(e.betrag||0), 0),
+    'Betrag (€)': gefiltert.reduce((a, e) => a + parseFloat(e.betrag||0), 0),
     'Bezahlt von': ''
   });
 
@@ -802,8 +926,8 @@ function exportExcel() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Ausgaben');
 
-  const jahr = new Date().getFullYear();
-  XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_${jahr}.xlsx`);
+  const label = exportJahr === 'Alle' ? 'Alle_Jahre' : exportJahr;
+  XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_${label}.xlsx`);
   toast('📥 Excel heruntergeladen!');
 }
 
