@@ -910,33 +910,53 @@ function setExportJahr(jahr) {
 
 function exportExcel() {
   const exportJahr = window._exportJahr || 'Alle';
-  const gefiltert = exportJahr === 'Alle' ? eintraege : eintraege.filter(e => entryJahr(e) === exportJahr);
-  if (gefiltert.length === 0) { toast('⚠️ Keine Einträge vorhanden'); return; }
-
-  const rows = gefiltert.map(e => ({
-    'Datum': e.datum,
-    'Kategorie': e.kategorie || 'Sonstiges',
-    'Beschreibung': e.beschreibung || '',
-    'Betrag (€)': parseFloat(e.betrag || 0),
-    'Bezahlt von': e.von || ''
-  }));
-
-  rows.push({
-    'Datum': '',
-    'Kategorie': 'GESAMT',
-    'Beschreibung': '',
-    'Betrag (€)': gefiltert.reduce((a, e) => a + parseFloat(e.betrag||0), 0),
-    'Bezahlt von': ''
-  });
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = [{wch:12},{wch:14},{wch:40},{wch:12},{wch:16}];
+  const zuExportieren = exportJahr === 'Alle' ? eintraege : eintraege.filter(e => entryJahr(e) === exportJahr);
+  if (zuExportieren.length === 0) { toast('⚠️ Keine Einträge vorhanden'); return; }
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Ausgaben');
+  const cols = [{wch:12},{wch:14},{wch:40},{wch:12},{wch:16}];
 
-  const label = exportJahr === 'Alle' ? 'Alle_Jahre' : exportJahr;
-  XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_${label}.xlsx`);
+  function eintragToRow(e) {
+    return {
+      'Datum': e.datum,
+      'Kategorie': e.kategorie || 'Sonstiges',
+      'Beschreibung': e.beschreibung || '',
+      'Betrag (€)': parseFloat(e.betrag || 0),
+      'Bezahlt von': e.von || ''
+    };
+  }
+  function summeZeile(liste) {
+    return { 'Datum': '', 'Kategorie': 'GESAMT', 'Beschreibung': '', 'Betrag (€)': liste.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' };
+  }
+
+  if (exportJahr === 'Alle') {
+    // Ein Reiter pro Jahr
+    const jahre = getJahre();
+    jahre.forEach(jahr => {
+      const liste = zuExportieren.filter(e => entryJahr(e) === jahr);
+      const rows = liste.map(eintragToRow);
+      rows.push(summeZeile(liste));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = cols;
+      XLSX.utils.book_append_sheet(wb, ws, jahr);
+    });
+    // Gesamt-Reiter
+    const alleRows = zuExportieren.map(eintragToRow);
+    alleRows.push(summeZeile(zuExportieren));
+    const wsGesamt = XLSX.utils.json_to_sheet(alleRows);
+    wsGesamt['!cols'] = cols;
+    XLSX.utils.book_append_sheet(wb, wsGesamt, 'Gesamt');
+    XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_Alle_Jahre.xlsx`);
+  } else {
+    // Nur ein Jahr – ein Reiter + Gesamt (identisch)
+    const rows = zuExportieren.map(eintragToRow);
+    rows.push(summeZeile(zuExportieren));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = cols;
+    XLSX.utils.book_append_sheet(wb, ws, exportJahr);
+    XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_${exportJahr}.xlsx`);
+  }
+
   toast('📥 Excel heruntergeladen!');
 }
 
