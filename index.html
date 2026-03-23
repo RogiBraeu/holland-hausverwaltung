@@ -488,8 +488,21 @@ async function login(email, password) {
   if (error) return { ok: false, error: error.message };
   currentUser = data.user;
   authToken = data.session.access_token;
+  console.log('Login OK, Token:', authToken ? authToken.substring(0,20) + '...' : 'FEHLT');
   return { ok: true };
 }
+
+// Auth State Listener – Token immer aktuell halten
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    authToken = session.access_token;
+    currentUser = session.user;
+    console.log('Auth State:', event, '– Token aktualisiert');
+  } else {
+    authToken = null;
+    currentUser = null;
+  }
+});
 
 async function logout() {
   await supabaseClient.auth.signOut();
@@ -527,7 +540,7 @@ async function saveAusgabe(entry) {
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Authorization': 'Bearer ' + (authToken || SUPA_KEY),
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(entry)
@@ -877,7 +890,7 @@ async function keepAlive() {
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Authorization': 'Bearer ' + (authToken || SUPA_KEY),
         'Prefer': 'return=representation'
       },
       body: JSON.stringify({
