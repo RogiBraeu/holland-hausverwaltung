@@ -234,6 +234,7 @@
   .cat-gebühren { background: #cfe2ff; color: #084298; }
   .cat-sonstiges { background: #e2e3e5; color: #383d41; }
   .cat-anschaffungen { background: #e8d5f5; color: #5a1f8a; }
+  .cat-einnahmen { background: #d4f5e2; color: #0a5c36; }
   .entry-betrag {
     font-family: 'Playfair Display', serif;
     font-size: 17px;
@@ -299,6 +300,7 @@
   .filter-chip.cat-gebühren    { background: #cfe2ff; color: #084298; border-color: #a0c0f0; }
   .filter-chip.cat-anschaffungen { background: #e8d5f5; color: #5a1f8a; border-color: #c9a0e8; }
   .filter-chip.cat-sonstiges   { background: #e2e3e5; color: #383d41; border-color: #c0c3c7; }
+  .filter-chip.cat-einnahmen   { background: #d4f5e2; color: #0a5c36; border-color: #8ed4b0; }
   /* Aktiv: kräftige Farbe */
   .filter-chip.cat-energie.active     { background: #856404; color: #fff; border-color: #856404; }
   .filter-chip.cat-steuern.active     { background: #721c24; color: #fff; border-color: #721c24; }
@@ -307,6 +309,7 @@
   .filter-chip.cat-gebühren.active    { background: #084298; color: #fff; border-color: #084298; }
   .filter-chip.cat-anschaffungen.active { background: #5a1f8a; color: #fff; border-color: #5a1f8a; }
   .filter-chip.cat-sonstiges.active   { background: #383d41; color: #fff; border-color: #383d41; }
+  .filter-chip.cat-einnahmen.active   { background: #0a5c36; color: #fff; border-color: #0a5c36; }
 
   /* LEER */
   .empty {
@@ -529,6 +532,7 @@ async function logout() {
 }
 
 const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'Anschaffungen', 'Sonstiges'];
+const ALLE_KATEGORIEN = [...KATEGORIEN, 'Einnahmen'];
 
 let activeTab = 0;
 let filterKat = 'Alle';
@@ -605,7 +609,7 @@ function renderEingabe() {
   const heute = new Date().toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
   return `
   <div class="card">
-    <div class="card-title">✏️ Neue Ausgabe erfassen</div>
+    <div class="card-title">✏️ Neuen Eintrag erfassen</div>
     <div class="card-body">
       <div class="field-row">
         <div class="field">
@@ -623,19 +627,24 @@ function renderEingabe() {
         <label>Kategorie</label>
         <select id="f_kategorie">
           <option value="">— bitte wählen —</option>
-          ${KATEGORIEN.map(k => `<option value="${k}">${k}</option>`).join('')}
+          <optgroup label="💸 Ausgaben">
+            ${KATEGORIEN.map(k => `<option value="${k}">${k}</option>`).join('')}
+          </optgroup>
+          <optgroup label="💰 Einnahmen">
+            <option value="Einnahmen">Einnahmen</option>
+          </optgroup>
         </select>
       </div>
       <div class="field">
         <label>Beschreibung</label>
-        <textarea id="f_beschreibung" placeholder="Was wurde bezahlt? (optional)"></textarea>
+        <textarea id="f_beschreibung" placeholder="Was wurde bezahlt / wofür? (optional)"></textarea>
       </div>
       <div class="field">
         <label>Von <span style="font-weight:300;text-transform:none;letter-spacing:0;">(optional)</span></label>
         <input type="text" id="f_von" placeholder="z.B. Name...">
       </div>
       <div class="btn-row" style="margin-top:4px;">
-        <button class="btn btn-primary" onclick="speichern()">💾 Ausgabe speichern</button>
+        <button class="btn btn-primary" onclick="speichern()">💾 Speichern</button>
         <button class="btn" onclick="felder_leeren()">↺ Leeren</button>
       </div>
     </div>
@@ -653,19 +662,19 @@ async function speichern() {
   if (!betrag || betrag <= 0) { toast('⚠️ Bitte gültigen Betrag eingeben'); return; }
   // Kategorie optional
 
-  const entry = { datum, betrag: -Math.abs(betrag), kategorie, beschreibung, von };
+  const istEinnahme = kategorie === 'Einnahmen';
+  const entry = { datum, betrag: istEinnahme ? Math.abs(betrag) : -Math.abs(betrag), kategorie, beschreibung, von };
   const saved = await saveAusgabe(entry);
   if (saved) {
     eintraege.unshift(saved);
     saveLokal(eintraege);
-    toast('✅ Ausgabe gespeichert!');
+    toast(istEinnahme ? '✅ Einnahme gespeichert!' : '✅ Ausgabe gespeichert!');
     felder_leeren();
   } else {
-    // Lokal speichern als Fallback
     entry.id = Date.now();
     eintraege.unshift(entry);
     saveLokal(eintraege);
-    toast('✅ Lokal gespeichert (offline)');
+    toast(istEinnahme ? '✅ Einnahme lokal gespeichert!' : '✅ Lokal gespeichert (offline)');
     felder_leeren();
   }
 }
@@ -700,18 +709,33 @@ async function renderListe(main, reload = true) {
   const jahre = getJahre();
   if (filterJahr !== 'Alle' && !jahre.includes(filterJahr)) filterJahr = 'Alle';
 
-  let gefiltert = eintraege;
-  if (filterJahr !== 'Alle') gefiltert = gefiltert.filter(e => entryJahr(e) === filterJahr);
+  let basisGefiltert = eintraege;
+  if (filterJahr !== 'Alle') basisGefiltert = basisGefiltert.filter(e => entryJahr(e) === filterJahr);
+
+  const ausgaben = basisGefiltert.filter(e => parseFloat(e.betrag||0) < 0);
+  const einnahmen = basisGefiltert.filter(e => parseFloat(e.betrag||0) > 0);
+  const summeAusgaben = ausgaben.reduce((a, e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
+  const summeEinnahmen = einnahmen.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+
+  let gefiltert = basisGefiltert;
   if (filterKat !== 'Alle') gefiltert = gefiltert.filter(e => e.kategorie === filterKat);
-  const summe = gefiltert.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
 
   main.innerHTML = `
-  <div class="summe-box">
-    <div>
-      <div class="summe-label">Gesamtausgaben</div>
-      <div class="summe-count">${gefiltert.length} Eintrag${gefiltert.length !== 1 ? 'e' : ''}${filterKat !== 'Alle' ? ' · ' + filterKat : ''}${filterJahr !== 'Alle' ? ' · ' + filterJahr : ''}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+    <div class="summe-box" style="margin-bottom:0;">
+      <div>
+        <div class="summe-label">💸 Ausgaben</div>
+        <div class="summe-count">${ausgaben.length} Einträge${filterJahr !== 'Alle' ? ' · ' + filterJahr : ''}</div>
+      </div>
+      <div class="summe-value" style="font-size:20px;">−${summeAusgaben.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-value">${summe.toFixed(2).replace('.',',')} €</div>
+    <div class="summe-box" style="margin-bottom:0;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+      <div>
+        <div class="summe-label">💰 Einnahmen</div>
+        <div class="summe-count">${einnahmen.length} Einträge${filterJahr !== 'Alle' ? ' · ' + filterJahr : ''}</div>
+      </div>
+      <div class="summe-value" style="font-size:20px;">+${summeEinnahmen.toFixed(2).replace('.',',')} €</div>
+    </div>
   </div>
 
   ${jahre.length > 1 ? `
@@ -723,13 +747,14 @@ async function renderListe(main, reload = true) {
 
   <div class="filter-row">
     <div class="filter-chip ${filterKat==='Alle'?'active':''}" onclick="setFilter('Alle')">Alle</div>
-    <div class="filter-chip cat-energie ${filterKat==='Energie'?'active':''}" onclick="setFilter('Energie')" style="${filterKat==='Energie'?'':'opacity:0.85;'}">Energie</div>
-    <div class="filter-chip cat-steuern ${filterKat==='Steuern'?'active':''}" onclick="setFilter('Steuern')" style="${filterKat==='Steuern'?'':'opacity:0.85;'}">Steuern</div>
-    <div class="filter-chip cat-reparatur ${filterKat==='Reparatur'?'active':''}" onclick="setFilter('Reparatur')" style="${filterKat==='Reparatur'?'':'opacity:0.85;'}">Reparatur</div>
-    <div class="filter-chip cat-garten ${filterKat==='Garten'?'active':''}" onclick="setFilter('Garten')" style="${filterKat==='Garten'?'':'opacity:0.85;'}">Garten</div>
-    <div class="filter-chip cat-gebühren ${filterKat==='Gebühren'?'active':''}" onclick="setFilter('Gebühren')" style="${filterKat==='Gebühren'?'':'opacity:0.85;'}">Gebühren</div>
-    <div class="filter-chip cat-anschaffungen ${filterKat==='Anschaffungen'?'active':''}" onclick="setFilter('Anschaffungen')" style="${filterKat==='Anschaffungen'?'':'opacity:0.85;'}">Anschaffungen</div>
-    <div class="filter-chip cat-sonstiges ${filterKat==='Sonstiges'?'active':''}" onclick="setFilter('Sonstiges')" style="${filterKat==='Sonstiges'?'':'opacity:0.85;'}">Sonstiges</div>
+    <div class="filter-chip cat-energie ${filterKat==='Energie'?'active':''}" onclick="setFilter('Energie')">Energie</div>
+    <div class="filter-chip cat-steuern ${filterKat==='Steuern'?'active':''}" onclick="setFilter('Steuern')">Steuern</div>
+    <div class="filter-chip cat-reparatur ${filterKat==='Reparatur'?'active':''}" onclick="setFilter('Reparatur')">Reparatur</div>
+    <div class="filter-chip cat-garten ${filterKat==='Garten'?'active':''}" onclick="setFilter('Garten')">Garten</div>
+    <div class="filter-chip cat-gebühren ${filterKat==='Gebühren'?'active':''}" onclick="setFilter('Gebühren')">Gebühren</div>
+    <div class="filter-chip cat-anschaffungen ${filterKat==='Anschaffungen'?'active':''}" onclick="setFilter('Anschaffungen')">Anschaffungen</div>
+    <div class="filter-chip cat-sonstiges ${filterKat==='Sonstiges'?'active':''}" onclick="setFilter('Sonstiges')">Sonstiges</div>
+    <div class="filter-chip cat-einnahmen ${filterKat==='Einnahmen'?'active':''}" onclick="setFilter('Einnahmen')">💰 Einnahmen</div>
   </div>
 
   <div class="entry-list">
@@ -738,22 +763,24 @@ async function renderListe(main, reload = true) {
         <div class="empty-icon">📭</div>
         <div class="empty-text">Keine Einträge vorhanden</div>
       </div>` :
-      gefiltert.map(e => `
-        <div class="entry-item">
+      gefiltert.map(e => {
+        const istEinnahme = parseFloat(e.betrag||0) > 0;
+        return `
+        <div class="entry-item" style="${istEinnahme ? 'border-left:3px solid #1a8a52;' : ''}">
           <div>
             <div class="entry-date">${e.datum}${e.von ? ' · ' + e.von : ''}</div>
             <div class="entry-desc">${e.beschreibung || e.kategorie}</div>
             <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase()}">${e.kategorie || 'Sonstiges'}</span>
           </div>
           <div>
-            <div class="entry-betrag">${Math.abs(parseFloat(e.betrag||0)).toFixed(2).replace('.',',')} €</div>
+            <div class="entry-betrag" style="${istEinnahme ? 'color:#0a5c36;' : ''}">${istEinnahme ? '+' : '−'}${Math.abs(parseFloat(e.betrag||0)).toFixed(2).replace('.',',')} €</div>
             <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px;">
             <div class="entry-delete" style="color:var(--sea);" onclick="bearbeiten('${e.id}')">✏️</div>
             <div class="entry-delete" onclick="loeschen('${e.id}')">🗑</div>
           </div>
           </div>
-        </div>
-      `).join('')
+        </div>`;
+      }).join('')
     }
   </div>`;
 }
@@ -770,44 +797,62 @@ async function renderJahrAnsicht(main) {
 
   let html = '';
   jahre.forEach(jahr => {
-    const eintraege_jahr = eintraege.filter(e => entryJahr(e) === jahr);
-    const summe = eintraege_jahr.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+    const ej = eintraege.filter(e => entryJahr(e) === jahr);
+    const ausgabenJ = ej.filter(e => parseFloat(e.betrag||0) < 0);
+    const einnahmenJ = ej.filter(e => parseFloat(e.betrag||0) > 0);
+    const summeAusg = ausgabenJ.reduce((a, e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
+    const summeEinn = einnahmenJ.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+    const saldo = summeEinn - summeAusg;
     const perKat = {};
     KATEGORIEN.forEach(k => perKat[k] = 0);
-    eintraege_jahr.forEach(e => {
-      const kat = e.kategorie || 'Sonstiges';
-      if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0));
-    });
+    ausgabenJ.forEach(e => { const k = e.kategorie||'Sonstiges'; if(perKat[k]!==undefined) perKat[k] += Math.abs(parseFloat(e.betrag||0)); });
 
     html += `
     <div class="card">
       <div class="card-title">📅 ${jahr}
-        <span style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent);">${eintraege_jahr.length} Einträge</span>
+        <span style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent);">${ej.length} Einträge</span>
       </div>
       <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--border);">
-          <span style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Gesamt ${jahr}</span>
-          <span style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--sea2);">−${summe.toFixed(2).replace('.',',')} €</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+          <div style="background:#fef5f0;border-radius:8px;padding:10px 12px;border:1px solid #f0d0c0;">
+            <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">💸 Ausgaben</div>
+            <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--sea2);margin-top:2px;">−${summeAusg.toFixed(2).replace('.',',')} €</div>
+          </div>
+          <div style="background:#f0faf4;border-radius:8px;padding:10px 12px;border:1px solid #a8d5b8;">
+            <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">💰 Einnahmen</div>
+            <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:#0a5c36;margin-top:2px;">+${summeEinn.toFixed(2).replace('.',',')} €</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:${saldo >= 0 ? '#f0faf4' : '#fef5f0'};margin-bottom:12px;">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Saldo ${jahr}</span>
+          <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:${saldo >= 0 ? '#0a5c36' : 'var(--red)'};">${saldo >= 0 ? '+' : ''}${saldo.toFixed(2).replace('.',',')} €</span>
         </div>
         ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
             <span class="entry-cat cat-${k.toLowerCase()}">${k}</span>
             <strong style="color:var(--sea2);">−${perKat[k].toFixed(2).replace('.',',')} €</strong>
-          </div>
-        `).join('')}
+          </div>`).join('')}
+        ${einnahmenJ.length > 0 ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <span class="entry-cat cat-einnahmen">Einnahmen</span>
+            <strong style="color:#0a5c36;">+${summeEinn.toFixed(2).replace('.',',')} €</strong>
+          </div>` : ''}
       </div>
     </div>`;
   });
 
-  // Gesamtübersicht über alle Jahre
-  const gesamtSumme = eintraege.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+  const gesamtAusg = eintraege.filter(e => parseFloat(e.betrag||0) < 0).reduce((a,e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
+  const gesamtEinn = eintraege.filter(e => parseFloat(e.betrag||0) > 0).reduce((a,e) => a + parseFloat(e.betrag||0), 0);
   html = `
-  <div class="summe-box" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">
-    <div>
-      <div class="summe-label">Gesamtübersicht alle Jahre</div>
-      <div class="summe-count">${eintraege.length} Einträge · ${jahre.length} Jahr${jahre.length !== 1 ? 'e' : ''}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+    <div class="summe-box" style="margin-bottom:0;">
+      <div><div class="summe-label">💸 Alle Ausgaben</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
+      <div class="summe-value" style="font-size:20px;">−${gesamtAusg.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-value">−${gesamtSumme.toFixed(2).replace('.',',')} €</div>
+    <div class="summe-box" style="margin-bottom:0;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+      <div><div class="summe-label">💰 Alle Einnahmen</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
+      <div class="summe-value" style="font-size:20px;">+${gesamtEinn.toFixed(2).replace('.',',')} €</div>
+    </div>
   </div>` + html;
 
   main.innerHTML = html;
@@ -863,10 +908,14 @@ function renderExport() {
   if (exportJahr !== 'Alle' && !jahre.includes(exportJahr)) exportJahr = 'Alle';
 
   const gefiltert = exportJahr === 'Alle' ? eintraege : eintraege.filter(e => entryJahr(e) === exportJahr);
-  const summe = gefiltert.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+  const ausgaben = gefiltert.filter(e => parseFloat(e.betrag||0) < 0);
+  const einnahmenList = gefiltert.filter(e => parseFloat(e.betrag||0) > 0);
+  const summe = ausgaben.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
+  const summeEinn = einnahmenList.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+  const saldo = summeEinn - summe;
   const perKat = {};
   KATEGORIEN.forEach(k => perKat[k] = 0);
-  gefiltert.forEach(e => { const kat = e.kategorie || 'Sonstiges'; if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0)); });
+  ausgaben.forEach(e => { const kat = e.kategorie || 'Sonstiges'; if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0)); });
 
   return `
   <div class="card">
@@ -882,21 +931,29 @@ function renderExport() {
         </div>
       </div>` : ''}
       <div style="margin-bottom:16px;">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">
-          <strong>${gefiltert.length} Einträge</strong>${exportJahr !== 'Alle' ? ' aus ' + exportJahr : ''} werden als Excel-Liste exportiert.
-        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">💸 Ausgaben</div>
         ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
             <span><span class="entry-cat cat-${k.toLowerCase()}">${k}</span></span>
             <strong>−${perKat[k].toFixed(2).replace('.',',')} €</strong>
-          </div>
-        `).join('')}
-        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--sea2);">
-          <span>Gesamt</span>
-          <span>−${summe.toFixed(2).replace('.',',')} €</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:var(--sea2);border-bottom:2px solid var(--border);margin-bottom:12px;">
+          <span>Summe Ausgaben</span><span>−${summe.toFixed(2).replace('.',',')} €</span>
+        </div>
+        ${einnahmenList.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">💰 Einnahmen</div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span><span class="entry-cat cat-einnahmen">Einnahmen</span></span>
+          <strong style="color:#0a5c36;">+${summeEinn.toFixed(2).replace('.',',')} €</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:#0a5c36;border-bottom:2px solid var(--border);margin-bottom:12px;">
+          <span>Summe Einnahmen</span><span>+${summeEinn.toFixed(2).replace('.',',')} €</span>
+        </div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:10px 12px;border-radius:8px;background:${saldo>=0?'#f0faf4':'#fef5f0'};font-size:15px;font-weight:700;color:${saldo>=0?'#0a5c36':'var(--red)'};">
+          <span>Saldo</span><span>${saldo>=0?'+':''}${saldo.toFixed(2).replace('.',',')} €</span>
         </div>
       </div>
-      <div class="btn-row">
+      <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-accent" onclick="exportExcel()">📥 Excel herunterladen</button>
       </div>
     </div>
@@ -925,35 +982,40 @@ function exportExcel() {
       'Bezahlt von': e.von || ''
     };
   }
-  function summeZeile(liste) {
-    return { 'Datum': '', 'Kategorie': 'GESAMT', 'Beschreibung': '', 'Betrag (€)': liste.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' };
+  function buildSheet(liste) {
+    const ausgaben = liste.filter(e => parseFloat(e.betrag||0) < 0);
+    const einnahmen = liste.filter(e => parseFloat(e.betrag||0) > 0);
+    const rows = [];
+    // Ausgaben-Block
+    rows.push({ 'Datum': '── AUSGABEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+    ausgaben.forEach(e => rows.push(eintragToRow(e)));
+    rows.push({ 'Datum': '', 'Kategorie': 'Summe Ausgaben', 'Beschreibung': '', 'Betrag (€)': ausgaben.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
+    rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+    // Einnahmen-Block
+    if (einnahmen.length > 0) {
+      rows.push({ 'Datum': '── EINNAHMEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+      einnahmen.forEach(e => rows.push(eintragToRow(e)));
+      rows.push({ 'Datum': '', 'Kategorie': 'Summe Einnahmen', 'Beschreibung': '', 'Betrag (€)': einnahmen.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
+      rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+    }
+    // Saldo
+    const saldo = liste.reduce((a,e) => a + parseFloat(e.betrag||0), 0);
+    rows.push({ 'Datum': '', 'Kategorie': 'SALDO', 'Beschreibung': '', 'Betrag (€)': saldo, 'Bezahlt von': '' });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = cols;
+    return ws;
   }
 
   if (exportJahr === 'Alle') {
-    // Ein Reiter pro Jahr
     const jahre = getJahre();
     jahre.forEach(jahr => {
       const liste = zuExportieren.filter(e => entryJahr(e) === jahr);
-      const rows = liste.map(eintragToRow);
-      rows.push(summeZeile(liste));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws['!cols'] = cols;
-      XLSX.utils.book_append_sheet(wb, ws, jahr);
+      XLSX.utils.book_append_sheet(wb, buildSheet(liste), jahr);
     });
-    // Gesamt-Reiter
-    const alleRows = zuExportieren.map(eintragToRow);
-    alleRows.push(summeZeile(zuExportieren));
-    const wsGesamt = XLSX.utils.json_to_sheet(alleRows);
-    wsGesamt['!cols'] = cols;
-    XLSX.utils.book_append_sheet(wb, wsGesamt, 'Gesamt');
+    XLSX.utils.book_append_sheet(wb, buildSheet(zuExportieren), 'Gesamt');
     XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_Alle_Jahre.xlsx`);
   } else {
-    // Nur ein Jahr – ein Reiter + Gesamt (identisch)
-    const rows = zuExportieren.map(eintragToRow);
-    rows.push(summeZeile(zuExportieren));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = cols;
-    XLSX.utils.book_append_sheet(wb, ws, exportJahr);
+    XLSX.utils.book_append_sheet(wb, buildSheet(zuExportieren), exportJahr);
     XLSX.writeFile(wb, `Ferienhaus_Holland_Ausgaben_${exportJahr}.xlsx`);
   }
 
