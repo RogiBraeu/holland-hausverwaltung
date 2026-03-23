@@ -861,15 +861,8 @@ async function init() {
 
 init();
 
-// ── SUPABASE WACHHALT (alle 6 Tage) ──────────────────────────────────────
+// ── SUPABASE WACHHALT (bei jedem Öffnen) ─────────────────────────────────
 async function keepAlive() {
-  const KEY = 'last_keepalive';
-  const now = Date.now();
-  const last = parseInt(localStorage.getItem(KEY) || '0');
-  const sechsTage = 6 * 24 * 60 * 60 * 1000;
-  
-  if (now - last < sechsTage) return; // noch nicht fällig
-  
   try {
     // Dummy Eintrag schreiben
     const res = await fetch(`${SUPA_URL}/rest/v1/ausgaben`, {
@@ -898,7 +891,6 @@ async function keepAlive() {
           headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
         });
       }
-      localStorage.setItem(KEY, now.toString());
       console.log('Supabase keepalive erfolgreich');
     }
   } catch(e) { console.log('keepalive fehlgeschlagen:', e); }
