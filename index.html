@@ -291,13 +291,22 @@
     letter-spacing: 0.3px;
   }
   .filter-chip.active { background: var(--sea); color: #fff; border-color: var(--sea); }
-  .filter-chip.cat-energie.active  { background: #856404; color: #fff; border-color: #856404; }
-  .filter-chip.cat-steuern.active  { background: #721c24; color: #fff; border-color: #721c24; }
-  .filter-chip.cat-reparatur.active { background: #155724; color: #fff; border-color: #155724; }
-  .filter-chip.cat-garten.active   { background: #0f5132; color: #fff; border-color: #0f5132; }
-  .filter-chip.cat-gebühren.active { background: #084298; color: #fff; border-color: #084298; }
+  /* Kategorie-Chips: leicht farbig im Ruhezustand */
+  .filter-chip.cat-energie     { background: #fff3cd; color: #856404; border-color: #f0d878; }
+  .filter-chip.cat-steuern     { background: #f8d7da; color: #721c24; border-color: #f0b8bd; }
+  .filter-chip.cat-reparatur   { background: #d4edda; color: #155724; border-color: #a8d5b5; }
+  .filter-chip.cat-garten      { background: #d1f0e0; color: #0f5132; border-color: #9adec0; }
+  .filter-chip.cat-gebühren    { background: #cfe2ff; color: #084298; border-color: #a0c0f0; }
+  .filter-chip.cat-anschaffungen { background: #e8d5f5; color: #5a1f8a; border-color: #c9a0e8; }
+  .filter-chip.cat-sonstiges   { background: #e2e3e5; color: #383d41; border-color: #c0c3c7; }
+  /* Aktiv: kräftige Farbe */
+  .filter-chip.cat-energie.active     { background: #856404; color: #fff; border-color: #856404; }
+  .filter-chip.cat-steuern.active     { background: #721c24; color: #fff; border-color: #721c24; }
+  .filter-chip.cat-reparatur.active   { background: #155724; color: #fff; border-color: #155724; }
+  .filter-chip.cat-garten.active      { background: #0f5132; color: #fff; border-color: #0f5132; }
+  .filter-chip.cat-gebühren.active    { background: #084298; color: #fff; border-color: #084298; }
   .filter-chip.cat-anschaffungen.active { background: #5a1f8a; color: #fff; border-color: #5a1f8a; }
-  .filter-chip.cat-sonstiges.active { background: #383d41; color: #fff; border-color: #383d41; }
+  .filter-chip.cat-sonstiges.active   { background: #383d41; color: #fff; border-color: #383d41; }
 
   /* LEER */
   .empty {
