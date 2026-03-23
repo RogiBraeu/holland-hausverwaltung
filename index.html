@@ -412,21 +412,75 @@ let authToken = null;
 
 // ── AUTH FUNKTIONEN ───────────────────────────────────────────────────────
 async function checkSession() {
+  // Prüfe ob ein Auth Code in der URL ist (Invite/Recovery Link)
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  const accessToken = hashParams.get('access_token');
+  const type = hashParams.get('type');
+  
+  if (accessToken) {
+    // Token aus URL direkt nutzen
+    const { data, error } = await supabaseClient.auth.setSession({
+      access_token: accessToken,
+      refresh_token: hashParams.get('refresh_token') || ''
+    });
+    if (data?.session) {
+      currentUser = data.session.user;
+      authToken = data.session.access_token;
+      window.history.replaceState({}, '', window.location.pathname);
+      // Bei Password Recovery → Passwort setzen Dialog zeigen
+      if (type === 'recovery') {
+        showPasswordReset();
+        return true;
+      }
+      return true;
+    }
+  }
+  
+  // Normale Session prüfen
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     currentUser = session.user;
     authToken = session.access_token;
     return true;
   }
-  // Prüfe ob wir von einem Invite Link kommen
-  const { data: { session: newSession } } = await supabaseClient.auth.exchangeCodeForSession(window.location.href);
-  if (newSession) {
-    currentUser = newSession.user;
-    authToken = newSession.access_token;
-    window.history.replaceState({}, '', window.location.pathname);
-    return true;
-  }
   return false;
+}
+
+function showPasswordReset() {
+  // Zeige Passwort setzen Dialog
+  const overlay = document.getElementById('login-overlay');
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="login-card">
+      <div class="login-logo">🔑</div>
+      <div class="login-title">Passwort setzen</div>
+      <div class="login-sub">Bitte wähle dein neues Passwort</div>
+      <div class="login-field">
+        <label>Neues Passwort</label>
+        <input type="password" id="new-password" placeholder="Mindestens 6 Zeichen" autocomplete="new-password">
+      </div>
+      <div class="login-field">
+        <label>Passwort wiederholen</label>
+        <input type="password" id="new-password2" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button class="login-btn" onclick="doSetPassword()">Passwort speichern</button>
+      <div class="login-error" id="login-error"></div>
+    </div>`;
+}
+
+async function doSetPassword() {
+  const pw1 = document.getElementById('new-password').value;
+  const pw2 = document.getElementById('new-password2').value;
+  const errEl = document.getElementById('login-error');
+  
+  if (pw1.length < 6) { errEl.textContent = 'Mindestens 6 Zeichen!'; return; }
+  if (pw1 !== pw2) { errEl.textContent = 'Passwörter stimmen nicht überein!'; return; }
+  
+  const { error } = await supabaseClient.auth.updateUser({ password: pw1 });
+  if (error) { errEl.textContent = '❌ ' + error.message; return; }
+  
+  document.getElementById('login-overlay').style.display = 'none';
+  alert('✅ Passwort gespeichert! Du bist jetzt eingeloggt.');
 }
 
 async function login(email, password) {
