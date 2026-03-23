@@ -518,49 +518,34 @@ let filterKat = 'Alle';
 let eintraege = [];
 
 // ── SUPABASE ──────────────────────────────────────────────────────────────
-async function loadAusgaben() {
-  try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?order=datum.desc`, {
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
-    });
-    if (!res.ok) { 
-      return getLokal(); 
-    }
-    const rows = await res.json();
-    eintraege = rows;
-    saveLokal(rows);
-    return rows;
-  } catch(e) { return getLokal(); }
-}
-
 async function saveAusgabe(entry) {
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + (authToken || SUPA_KEY),
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify(entry)
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('Supabase Fehler:', err);
-      return null;
-    }
-    const rows = await res.json();
-    return rows[0];
+    const { data, error } = await supabaseClient
+      .from(SUPA_TABLE)
+      .insert(entry)
+      .select();
+    if (error) { console.error('Supabase Fehler:', error.message); return null; }
+    return data[0];
   } catch(e) { return null; }
 }
 
+async function loadAusgaben() {
+  try {
+    const { data, error } = await supabaseClient
+      .from(SUPA_TABLE)
+      .select('*')
+      .order('datum', { ascending: false });
+    if (error) { console.warn('Supabase Fehler:', error.message); return getLokal(); }
+    eintraege = data;
+    saveLokal(data);
+    return data;
+  } catch(e) { return getLokal(); }
+}
+
+
 async function deleteAusgabe(id) {
   try {
-    await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
-    });
+    await supabaseClient.from(SUPA_TABLE).delete().eq('id', id);
   } catch(e) {}
 }
 
@@ -851,6 +836,7 @@ async function doLogin() {
     hideLogin();
     eintraege = getLokal();
     render();
+    keepAlive(); // erst nach Login!
   } else {
     errEl.textContent = '❌ ' + (result.error || 'Login fehlgeschlagen');
   }
@@ -867,6 +853,7 @@ async function init() {
     hideLogin();
     eintraege = getLokal();
     render();
+    keepAlive(); // erst nach Login!
   } else {
     showLogin();
   }
@@ -917,7 +904,7 @@ async function keepAlive() {
   } catch(e) { console.log('keepalive fehlgeschlagen:', e); }
 }
 
-keepAlive();
+// keepAlive wird nach Login aufgerufen
 </script>
 </body>
 </html>
