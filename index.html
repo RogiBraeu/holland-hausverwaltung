@@ -406,20 +406,20 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const SUPA_TABLE = 'ausgaben';
 
 // ── SUPABASE CLIENT ───────────────────────────────────────────────────────
-const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+const supabaseClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 let currentUser = null;
 let authToken = null;
 
 // ── AUTH FUNKTIONEN ───────────────────────────────────────────────────────
 async function checkSession() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     currentUser = session.user;
     authToken = session.access_token;
     return true;
   }
   // Prüfe ob wir von einem Invite Link kommen
-  const { data: { session: newSession } } = await supabase.auth.exchangeCodeForSession(window.location.href);
+  const { data: { session: newSession } } = await supabaseClient.auth.exchangeCodeForSession(window.location.href);
   if (newSession) {
     currentUser = newSession.user;
     authToken = newSession.access_token;
@@ -430,7 +430,7 @@ async function checkSession() {
 }
 
 async function login(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: error.message };
   currentUser = data.user;
   authToken = data.session.access_token;
@@ -438,7 +438,7 @@ async function login(email, password) {
 }
 
 async function logout() {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   currentUser = null;
   authToken = null;
   showLogin();
