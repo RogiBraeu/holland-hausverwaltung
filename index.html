@@ -324,12 +324,62 @@
     .field-row { grid-template-columns: 1fr; }
     .summe-value { font-size: 22px; }
   }
+
+  .login-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #2a6b8a, #1d4e66);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; padding: 20px;
+  }
+  .login-card {
+    background: #fff; border-radius: 16px; padding: 32px 24px;
+    width: 100%; max-width: 360px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .login-logo { font-size: 40px; text-align: center; margin-bottom: 8px; }
+  .login-title {
+    font-family: 'Playfair Display', serif; font-size: 22px;
+    color: var(--sea2); text-align: center; margin-bottom: 4px;
+  }
+  .login-sub { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 24px; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .login-field input {
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+    border-radius: 10px; font-size: 16px; outline: none; background: var(--sand);
+  }
+  .login-field input:focus { border-color: var(--sea); background: #fff; }
+  .login-btn {
+    width: 100%; padding: 13px; border-radius: 10px; border: none;
+    background: linear-gradient(135deg, var(--sea), var(--sea2));
+    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px;
+  }
+  .login-error { color: #c62828; font-size: 12px; text-align: center; margin-top: 10px; min-height: 18px; }
+
 </style>
 </head>
 <body>
 
+<div id="login-overlay" class="login-overlay" style="display:none;">
+  <div class="login-card">
+    <div class="login-logo">🏡</div>
+    <div class="login-title">Ferienhaus Holland</div>
+    <div class="login-sub">Bitte einloggen um fortzufahren</div>
+    <div class="login-field">
+      <label>E-Mail</label>
+      <input type="email" id="login-email" placeholder="ihre@email.de" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Passwort</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Einloggen</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
 <div class="header">
-  <div class="header-top">
+  <div class="header-top" style="justify-content:space-between;">
     <div class="header-icon">🏡</div>
     <div class="header-title">
       Ferienhaus Holland
@@ -348,11 +398,51 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 
 const SUPA_URL = 'https://mcjtxlgyzsbkycdrspyh.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1janR4bGd5enNia3ljZHJzcHloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTkwNDYsImV4cCI6MjA4ODk3NTA0Nn0.XWrECG7p3jrp0UPt-Q8KALtN1JWsEcgH0b0bdzIC6Tk';
 const SUPA_TABLE = 'ausgaben';
+
+// ── SUPABASE CLIENT ───────────────────────────────────────────────────────
+const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+let currentUser = null;
+let authToken = null;
+
+// ── AUTH FUNKTIONEN ───────────────────────────────────────────────────────
+async function checkSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    authToken = session.access_token;
+    return true;
+  }
+  // Prüfe ob wir von einem Invite Link kommen
+  const { data: { session: newSession } } = await supabase.auth.exchangeCodeForSession(window.location.href);
+  if (newSession) {
+    currentUser = newSession.user;
+    authToken = newSession.access_token;
+    window.history.replaceState({}, '', window.location.pathname);
+    return true;
+  }
+  return false;
+}
+
+async function login(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { ok: false, error: error.message };
+  currentUser = data.user;
+  authToken = data.session.access_token;
+  return { ok: true };
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+  currentUser = null;
+  authToken = null;
+  showLogin();
+}
 
 const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'Anschaffungen', 'Sonstiges'];
 
@@ -364,7 +454,7 @@ let eintraege = [];
 async function loadAusgaben() {
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?order=datum.desc`, {
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
     });
     if (!res.ok) { 
       return getLokal(); 
@@ -402,7 +492,7 @@ async function deleteAusgabe(id) {
   try {
     await fetch(`${SUPA_URL}/rest/v1/${SUPA_TABLE}?id=eq.${id}`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
     });
   } catch(e) {}
 }
@@ -666,8 +756,101 @@ function exportExcel() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-eintraege = getLokal();
-render();
+function showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+}
+function hideLogin() {
+  document.getElementById('login-overlay').style.display = 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  
+  if (!email || !password) { errEl.textContent = 'Bitte Email und Passwort eingeben'; return; }
+  
+  const btn = document.querySelector('.login-btn');
+  btn.textContent = 'Einloggen...';
+  btn.disabled = true;
+  
+  const result = await login(email, password);
+  
+  btn.textContent = 'Einloggen';
+  btn.disabled = false;
+  
+  if (result.ok) {
+    hideLogin();
+    eintraege = getLokal();
+    render();
+  } else {
+    errEl.textContent = '❌ ' + (result.error || 'Login fehlgeschlagen');
+  }
+}
+
+// Enter Taste im Login
+document.getElementById('login-password').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function init() {
+  const loggedIn = await checkSession();
+  if (loggedIn) {
+    hideLogin();
+    eintraege = getLokal();
+    render();
+  } else {
+    showLogin();
+  }
+}
+
+init();
+
+// ── SUPABASE WACHHALT (alle 6 Tage) ──────────────────────────────────────
+async function keepAlive() {
+  const KEY = 'last_keepalive';
+  const now = Date.now();
+  const last = parseInt(localStorage.getItem(KEY) || '0');
+  const sechsTage = 6 * 24 * 60 * 60 * 1000;
+  
+  if (now - last < sechsTage) return; // noch nicht fällig
+  
+  try {
+    // Dummy Eintrag schreiben
+    const res = await fetch(`${SUPA_URL}/rest/v1/ausgaben`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        datum: new Date().toLocaleDateString('de-DE'),
+        betrag: -0.01,
+        kategorie: 'Sonstiges',
+        beschreibung: '_keepalive',
+        von: '_system'
+      })
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      const id = rows[0]?.id;
+      // Sofort wieder löschen
+      if (id) {
+        await fetch(`${SUPA_URL}/rest/v1/ausgaben?id=eq.${id}`, {
+          method: 'DELETE',
+          headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
+        });
+      }
+      localStorage.setItem(KEY, now.toString());
+      console.log('Supabase keepalive erfolgreich');
+    }
+  } catch(e) { console.log('keepalive fehlgeschlagen:', e); }
+}
+
+keepAlive();
 </script>
 </body>
 </html>
