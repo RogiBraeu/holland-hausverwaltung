@@ -235,6 +235,8 @@
   .cat-sonstiges { background: #e2e3e5; color: #383d41; }
   .cat-anschaffungen { background: #e8d5f5; color: #5a1f8a; }
   .cat-einnahmen { background: #d4f5e2; color: #0a5c36; }
+  .cat-voraussichtliche-einnahmen { background: #fff8e1; color: #8a6200; }
+  .cat-tatsächliche-einnahmen { background: #d4f5e2; color: #0a5c36; }
   .entry-betrag {
     font-family: 'Playfair Display', serif;
     font-size: 17px;
@@ -301,6 +303,8 @@
   .filter-chip.cat-anschaffungen { background: #e8d5f5; color: #5a1f8a; border-color: #c9a0e8; }
   .filter-chip.cat-sonstiges   { background: #e2e3e5; color: #383d41; border-color: #c0c3c7; }
   .filter-chip.cat-einnahmen   { background: #d4f5e2; color: #0a5c36; border-color: #8ed4b0; }
+  .filter-chip.cat-voraussichtliche-einnahmen { background: #fff8e1; color: #8a6200; border-color: #f0d878; }
+  .filter-chip.cat-tatsächliche-einnahmen { background: #d4f5e2; color: #0a5c36; border-color: #8ed4b0; }
   /* Aktiv: kräftige Farbe */
   .filter-chip.cat-energie.active     { background: #856404; color: #fff; border-color: #856404; }
   .filter-chip.cat-steuern.active     { background: #721c24; color: #fff; border-color: #721c24; }
@@ -310,6 +314,8 @@
   .filter-chip.cat-anschaffungen.active { background: #5a1f8a; color: #fff; border-color: #5a1f8a; }
   .filter-chip.cat-sonstiges.active   { background: #383d41; color: #fff; border-color: #383d41; }
   .filter-chip.cat-einnahmen.active   { background: #0a5c36; color: #fff; border-color: #0a5c36; }
+  .filter-chip.cat-voraussichtliche-einnahmen.active { background: #8a6200; color: #fff; border-color: #8a6200; }
+  .filter-chip.cat-tatsächliche-einnahmen.active { background: #0a5c36; color: #fff; border-color: #0a5c36; }
 
   /* LEER */
   .empty {
@@ -406,8 +412,8 @@
     </div>
   </div>
   <div class="tabs" id="tabs">
-    <div class="tab active" onclick="setTab(0)">➕ Neue Ausgabe</div>
-    <div class="tab" onclick="setTab(1)">📋 Alle Ausgaben</div>
+    <div class="tab active" onclick="setTab(0)">➕ Neue Eingabe</div>
+    <div class="tab" onclick="setTab(1)">📋 Alle Eingaben</div>
     <div class="tab" onclick="setTab(2)">📅 Nach Jahr</div>
     <div class="tab" onclick="setTab(3)">📊 Excel Export</div>
   </div>
@@ -532,7 +538,7 @@ async function logout() {
 }
 
 const KATEGORIEN = ['Energie', 'Steuern', 'Reparatur', 'Garten', 'Gebühren', 'Anschaffungen', 'Sonstiges'];
-const ALLE_KATEGORIEN = [...KATEGORIEN, 'Einnahmen'];
+const ALLE_KATEGORIEN = [...KATEGORIEN, 'Voraussichtliche Einnahmen', 'Tatsächliche Einnahmen'];
 
 let activeTab = 0;
 let filterKat = 'Alle';
@@ -631,7 +637,8 @@ function renderEingabe() {
             ${KATEGORIEN.map(k => `<option value="${k}">${k}</option>`).join('')}
           </optgroup>
           <optgroup label="💰 Einnahmen">
-            <option value="Einnahmen">Einnahmen</option>
+            <option value="Voraussichtliche Einnahmen">Voraussichtliche Einnahmen</option>
+            <option value="Tatsächliche Einnahmen">Tatsächliche Einnahmen</option>
           </optgroup>
         </select>
       </div>
@@ -662,19 +669,19 @@ async function speichern() {
   if (!betrag || betrag <= 0) { toast('⚠️ Bitte gültigen Betrag eingeben'); return; }
   // Kategorie optional
 
-  const istEinnahme = kategorie === 'Einnahmen';
+  const istEinnahme = kategorie === 'Tatsächliche Einnahmen' || kategorie === 'Voraussichtliche Einnahmen';
   const entry = { datum, betrag: istEinnahme ? Math.abs(betrag) : -Math.abs(betrag), kategorie, beschreibung, von };
   const saved = await saveAusgabe(entry);
   if (saved) {
     eintraege.unshift(saved);
     saveLokal(eintraege);
-    toast(istEinnahme ? '✅ Einnahme gespeichert!' : '✅ Ausgabe gespeichert!');
+    toast(kategorie === 'Tatsächliche Einnahmen' ? '✅ Tatsächliche Einnahme gespeichert!' : kategorie === 'Voraussichtliche Einnahmen' ? '✅ Voraussichtliche Einnahme gespeichert!' : '✅ Ausgabe gespeichert!');
     felder_leeren();
   } else {
     entry.id = Date.now();
     eintraege.unshift(entry);
     saveLokal(eintraege);
-    toast(istEinnahme ? '✅ Einnahme lokal gespeichert!' : '✅ Lokal gespeichert (offline)');
+    toast('✅ Lokal gespeichert (offline)');
     felder_leeren();
   }
 }
@@ -713,28 +720,37 @@ async function renderListe(main, reload = true) {
   if (filterJahr !== 'Alle') basisGefiltert = basisGefiltert.filter(e => entryJahr(e) === filterJahr);
 
   const ausgaben = basisGefiltert.filter(e => parseFloat(e.betrag||0) < 0);
-  const einnahmen = basisGefiltert.filter(e => parseFloat(e.betrag||0) > 0);
+  const tatsEinn = basisGefiltert.filter(e => e.kategorie === 'Tatsächliche Einnahmen');
+  const voraussEinn = basisGefiltert.filter(e => e.kategorie === 'Voraussichtliche Einnahmen');
   const summeAusgaben = ausgaben.reduce((a, e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
-  const summeEinnahmen = einnahmen.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+  const summeTats = tatsEinn.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+  const summeVoraus = voraussEinn.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
 
   let gefiltert = basisGefiltert;
   if (filterKat !== 'Alle') gefiltert = gefiltert.filter(e => e.kategorie === filterKat);
 
   main.innerHTML = `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-    <div class="summe-box" style="margin-bottom:0;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;">
       <div>
-        <div class="summe-label">💸 Ausgaben</div>
+        <div class="summe-label" style="font-size:10px;">💸 Ausgaben</div>
         <div class="summe-count">${ausgaben.length} Einträge${filterJahr !== 'Alle' ? ' · ' + filterJahr : ''}</div>
       </div>
-      <div class="summe-value" style="font-size:20px;">−${summeAusgaben.toFixed(2).replace('.',',')} €</div>
+      <div class="summe-value" style="font-size:17px;">−${summeAusgaben.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-box" style="margin-bottom:0;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#8a6200,#c49000);">
       <div>
-        <div class="summe-label">💰 Einnahmen</div>
-        <div class="summe-count">${einnahmen.length} Einträge${filterJahr !== 'Alle' ? ' · ' + filterJahr : ''}</div>
+        <div class="summe-label" style="font-size:10px;">🔮 Voraussichtl.</div>
+        <div class="summe-count">${voraussEinn.length} Einträge</div>
       </div>
-      <div class="summe-value" style="font-size:20px;">+${summeEinnahmen.toFixed(2).replace('.',',')} €</div>
+      <div class="summe-value" style="font-size:17px;">+${summeVoraus.toFixed(2).replace('.',',')} €</div>
+    </div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+      <div>
+        <div class="summe-label" style="font-size:10px;">✅ Tatsächlich</div>
+        <div class="summe-count">${tatsEinn.length} Einträge</div>
+      </div>
+      <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
     </div>
   </div>
 
@@ -754,7 +770,8 @@ async function renderListe(main, reload = true) {
     <div class="filter-chip cat-gebühren ${filterKat==='Gebühren'?'active':''}" onclick="setFilter('Gebühren')">Gebühren</div>
     <div class="filter-chip cat-anschaffungen ${filterKat==='Anschaffungen'?'active':''}" onclick="setFilter('Anschaffungen')">Anschaffungen</div>
     <div class="filter-chip cat-sonstiges ${filterKat==='Sonstiges'?'active':''}" onclick="setFilter('Sonstiges')">Sonstiges</div>
-    <div class="filter-chip cat-einnahmen ${filterKat==='Einnahmen'?'active':''}" onclick="setFilter('Einnahmen')">💰 Einnahmen</div>
+    <div class="filter-chip cat-voraussichtliche-einnahmen ${filterKat==='Voraussichtliche Einnahmen'?'active':''}" onclick="setFilter('Voraussichtliche Einnahmen')">🔮 Voraussichtl.</div>
+    <div class="filter-chip cat-tatsächliche-einnahmen ${filterKat==='Tatsächliche Einnahmen'?'active':''}" onclick="setFilter('Tatsächliche Einnahmen')">✅ Tatsächlich</div>
   </div>
 
   <div class="entry-list">
@@ -765,19 +782,22 @@ async function renderListe(main, reload = true) {
       </div>` :
       gefiltert.map(e => {
         const istEinnahme = parseFloat(e.betrag||0) > 0;
+        const istVoraus = e.kategorie === 'Voraussichtliche Einnahmen';
+        const borderColor = istVoraus ? '#c49000' : istEinnahme ? '#1a8a52' : '';
+        const betragsfarbe = istVoraus ? '#8a6200' : istEinnahme ? '#0a5c36' : '';
         return `
-        <div class="entry-item" style="${istEinnahme ? 'border-left:3px solid #1a8a52;' : ''}">
+        <div class="entry-item" style="${borderColor ? 'border-left:3px solid '+borderColor+';' : ''}">
           <div>
             <div class="entry-date">${e.datum}${e.von ? ' · ' + e.von : ''}</div>
             <div class="entry-desc">${e.beschreibung || e.kategorie}</div>
-            <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase()}">${e.kategorie || 'Sonstiges'}</span>
+            <span class="entry-cat cat-${(e.kategorie||'sonstiges').toLowerCase().replace(/ /g,'-')}">${e.kategorie || 'Sonstiges'}</span>
           </div>
           <div>
-            <div class="entry-betrag" style="${istEinnahme ? 'color:#0a5c36;' : ''}">${istEinnahme ? '+' : '−'}${Math.abs(parseFloat(e.betrag||0)).toFixed(2).replace('.',',')} €</div>
+            <div class="entry-betrag" style="${betragsfarbe ? 'color:'+betragsfarbe+';' : ''}">${istEinnahme ? '+' : '−'}${Math.abs(parseFloat(e.betrag||0)).toFixed(2).replace('.',',')} €</div>
             <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px;">
-            <div class="entry-delete" style="color:var(--sea);" onclick="bearbeiten('${e.id}')">✏️</div>
-            <div class="entry-delete" onclick="loeschen('${e.id}')">🗑</div>
-          </div>
+              <div class="entry-delete" style="color:var(--sea);" onclick="bearbeiten('${e.id}')">✏️</div>
+              <div class="entry-delete" onclick="loeschen('${e.id}')">🗑</div>
+            </div>
           </div>
         </div>`;
       }).join('')
@@ -799,10 +819,12 @@ async function renderJahrAnsicht(main) {
   jahre.forEach(jahr => {
     const ej = eintraege.filter(e => entryJahr(e) === jahr);
     const ausgabenJ = ej.filter(e => parseFloat(e.betrag||0) < 0);
-    const einnahmenJ = ej.filter(e => parseFloat(e.betrag||0) > 0);
+    const tatsJ = ej.filter(e => e.kategorie === 'Tatsächliche Einnahmen');
+    const vorausJ = ej.filter(e => e.kategorie === 'Voraussichtliche Einnahmen');
     const summeAusg = ausgabenJ.reduce((a, e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
-    const summeEinn = einnahmenJ.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
-    const saldo = summeEinn - summeAusg;
+    const summeTats = tatsJ.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+    const summeVoraus = vorausJ.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+    const saldo = summeTats - summeAusg; // nur tatsächliche zählen!
     const perKat = {};
     KATEGORIEN.forEach(k => perKat[k] = 0);
     ausgabenJ.forEach(e => { const k = e.kategorie||'Sonstiges'; if(perKat[k]!==undefined) perKat[k] += Math.abs(parseFloat(e.betrag||0)); });
@@ -813,18 +835,22 @@ async function renderJahrAnsicht(main) {
         <span style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent);">${ej.length} Einträge</span>
       </div>
       <div class="card-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
-          <div style="background:#fef5f0;border-radius:8px;padding:10px 12px;border:1px solid #f0d0c0;">
-            <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">💸 Ausgaben</div>
-            <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--sea2);margin-top:2px;">−${summeAusg.toFixed(2).replace('.',',')} €</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;">
+          <div style="background:#fef5f0;border-radius:8px;padding:8px 10px;border:1px solid #f0d0c0;">
+            <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">💸 Ausgaben</div>
+            <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--sea2);margin-top:2px;">−${summeAusg.toFixed(2).replace('.',',')} €</div>
           </div>
-          <div style="background:#f0faf4;border-radius:8px;padding:10px 12px;border:1px solid #a8d5b8;">
-            <div style="font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">💰 Einnahmen</div>
-            <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:#0a5c36;margin-top:2px;">+${summeEinn.toFixed(2).replace('.',',')} €</div>
+          <div style="background:#fffbf0;border-radius:8px;padding:8px 10px;border:1px solid #f0d878;">
+            <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">🔮 Voraussichtl.</div>
+            <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#8a6200;margin-top:2px;">+${summeVoraus.toFixed(2).replace('.',',')} €</div>
+          </div>
+          <div style="background:#f0faf4;border-radius:8px;padding:8px 10px;border:1px solid #a8d5b8;">
+            <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">✅ Tatsächlich</div>
+            <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#0a5c36;margin-top:2px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:${saldo >= 0 ? '#f0faf4' : '#fef5f0'};margin-bottom:12px;">
-          <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Saldo ${jahr}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Saldo ${jahr} <span style="font-weight:400;font-size:10px;">(Tatsächl. Einnahmen − Ausgaben)</span></span>
           <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:${saldo >= 0 ? '#0a5c36' : 'var(--red)'};">${saldo >= 0 ? '+' : ''}${saldo.toFixed(2).replace('.',',')} €</span>
         </div>
         ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
@@ -832,26 +858,36 @@ async function renderJahrAnsicht(main) {
             <span class="entry-cat cat-${k.toLowerCase()}">${k}</span>
             <strong style="color:var(--sea2);">−${perKat[k].toFixed(2).replace('.',',')} €</strong>
           </div>`).join('')}
-        ${einnahmenJ.length > 0 ? `
+        ${vorausJ.length > 0 ? `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
-            <span class="entry-cat cat-einnahmen">Einnahmen</span>
-            <strong style="color:#0a5c36;">+${summeEinn.toFixed(2).replace('.',',')} €</strong>
+            <span class="entry-cat cat-voraussichtliche-einnahmen">Voraussichtl. Einnahmen</span>
+            <strong style="color:#8a6200;">+${summeVoraus.toFixed(2).replace('.',',')} €</strong>
+          </div>` : ''}
+        ${tatsJ.length > 0 ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <span class="entry-cat cat-tatsächliche-einnahmen">Tatsächl. Einnahmen</span>
+            <strong style="color:#0a5c36;">+${summeTats.toFixed(2).replace('.',',')} €</strong>
           </div>` : ''}
       </div>
     </div>`;
   });
 
   const gesamtAusg = eintraege.filter(e => parseFloat(e.betrag||0) < 0).reduce((a,e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
-  const gesamtEinn = eintraege.filter(e => parseFloat(e.betrag||0) > 0).reduce((a,e) => a + parseFloat(e.betrag||0), 0);
+  const gesamtTats = eintraege.filter(e => e.kategorie === 'Tatsächliche Einnahmen').reduce((a,e) => a + parseFloat(e.betrag||0), 0);
+  const gesamtVoraus = eintraege.filter(e => e.kategorie === 'Voraussichtliche Einnahmen').reduce((a,e) => a + parseFloat(e.betrag||0), 0);
   html = `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-    <div class="summe-box" style="margin-bottom:0;">
-      <div><div class="summe-label">💸 Alle Ausgaben</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
-      <div class="summe-value" style="font-size:20px;">−${gesamtAusg.toFixed(2).replace('.',',')} €</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;">
+      <div><div class="summe-label" style="font-size:10px;">💸 Alle Ausgaben</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
+      <div class="summe-value" style="font-size:17px;">−${gesamtAusg.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-box" style="margin-bottom:0;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
-      <div><div class="summe-label">💰 Alle Einnahmen</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
-      <div class="summe-value" style="font-size:20px;">+${gesamtEinn.toFixed(2).replace('.',',')} €</div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#8a6200,#c49000);">
+      <div><div class="summe-label" style="font-size:10px;">🔮 Voraussichtl.</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
+      <div class="summe-value" style="font-size:17px;">+${gesamtVoraus.toFixed(2).replace('.',',')} €</div>
+    </div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+      <div><div class="summe-label" style="font-size:10px;">✅ Tatsächlich</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
+      <div class="summe-value" style="font-size:17px;">+${gesamtTats.toFixed(2).replace('.',',')} €</div>
     </div>
   </div>` + html;
 
@@ -909,10 +945,12 @@ function renderExport() {
 
   const gefiltert = exportJahr === 'Alle' ? eintraege : eintraege.filter(e => entryJahr(e) === exportJahr);
   const ausgaben = gefiltert.filter(e => parseFloat(e.betrag||0) < 0);
-  const einnahmenList = gefiltert.filter(e => parseFloat(e.betrag||0) > 0);
+  const tatsEinnList = gefiltert.filter(e => e.kategorie === 'Tatsächliche Einnahmen');
+  const vorausEinnList = gefiltert.filter(e => e.kategorie === 'Voraussichtliche Einnahmen');
   const summe = ausgaben.reduce((a, e) => a + Math.abs(parseFloat(e.betrag || 0)), 0);
-  const summeEinn = einnahmenList.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
-  const saldo = summeEinn - summe;
+  const summeTats = tatsEinnList.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+  const summeVoraus = vorausEinnList.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
+  const saldo = summeTats - summe;
   const perKat = {};
   KATEGORIEN.forEach(k => perKat[k] = 0);
   ausgaben.forEach(e => { const kat = e.kategorie || 'Sonstiges'; if (perKat[kat] !== undefined) perKat[kat] += Math.abs(parseFloat(e.betrag||0)); });
@@ -940,18 +978,22 @@ function renderExport() {
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:var(--sea2);border-bottom:2px solid var(--border);margin-bottom:12px;">
           <span>Summe Ausgaben</span><span>−${summe.toFixed(2).replace('.',',')} €</span>
         </div>
-        ${einnahmenList.length > 0 ? `
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">💰 Einnahmen</div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
-          <span><span class="entry-cat cat-einnahmen">Einnahmen</span></span>
-          <strong style="color:#0a5c36;">+${summeEinn.toFixed(2).replace('.',',')} €</strong>
-        </div>
+        ${tatsEinnList.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">✅ Tatsächliche Einnahmen</div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:#0a5c36;border-bottom:2px solid var(--border);margin-bottom:12px;">
-          <span>Summe Einnahmen</span><span>+${summeEinn.toFixed(2).replace('.',',')} €</span>
+          <span>Summe</span><span>+${summeTats.toFixed(2).replace('.',',')} €</span>
         </div>` : ''}
-        <div style="display:flex;justify-content:space-between;padding:10px 12px;border-radius:8px;background:${saldo>=0?'#f0faf4':'#fef5f0'};font-size:15px;font-weight:700;color:${saldo>=0?'#0a5c36':'var(--red)'};">
+        <div style="display:flex;justify-content:space-between;padding:10px 12px;border-radius:8px;background:${saldo>=0?'#f0faf4':'#fef5f0'};font-size:14px;font-weight:700;color:${saldo>=0?'#0a5c36':'var(--red)'};margin-bottom:12px;">
           <span>Saldo</span><span>${saldo>=0?'+':''}${saldo.toFixed(2).replace('.',',')} €</span>
         </div>
+        ${vorausEinnList.length > 0 ? `
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🔮 Voraussichtliche Einnahmen <span style="font-weight:400;text-transform:none;">(nur Abgleich)</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:#8a6200;border-bottom:1px solid var(--border);margin-bottom:4px;">
+          <span>Summe</span><span>+${summeVoraus.toFixed(2).replace('.',',')} €</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:var(--muted);">
+          <span>Differenz (Tatsächl. − Voraussichtl.)</span><span>${(summeTats-summeVoraus)>=0?'+':''}${(summeTats-summeVoraus).toFixed(2).replace('.',',')} €</span>
+        </div>` : ''}
       </div>
       <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-accent" onclick="exportExcel()">📥 Excel herunterladen</button>
@@ -984,23 +1026,33 @@ function exportExcel() {
   }
   function buildSheet(liste) {
     const ausgaben = liste.filter(e => parseFloat(e.betrag||0) < 0);
-    const einnahmen = liste.filter(e => parseFloat(e.betrag||0) > 0);
+    const tatsEinn = liste.filter(e => e.kategorie === 'Tatsächliche Einnahmen');
+    const vorausEinn = liste.filter(e => e.kategorie === 'Voraussichtliche Einnahmen');
     const rows = [];
     // Ausgaben-Block
     rows.push({ 'Datum': '── AUSGABEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
     ausgaben.forEach(e => rows.push(eintragToRow(e)));
     rows.push({ 'Datum': '', 'Kategorie': 'Summe Ausgaben', 'Beschreibung': '', 'Betrag (€)': ausgaben.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
     rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
-    // Einnahmen-Block
-    if (einnahmen.length > 0) {
-      rows.push({ 'Datum': '── EINNAHMEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
-      einnahmen.forEach(e => rows.push(eintragToRow(e)));
-      rows.push({ 'Datum': '', 'Kategorie': 'Summe Einnahmen', 'Beschreibung': '', 'Betrag (€)': einnahmen.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
+    // Tatsächliche Einnahmen
+    if (tatsEinn.length > 0) {
+      rows.push({ 'Datum': '── TATSÄCHLICHE EINNAHMEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+      tatsEinn.forEach(e => rows.push(eintragToRow(e)));
+      rows.push({ 'Datum': '', 'Kategorie': 'Summe Tatsächliche Einnahmen', 'Beschreibung': '', 'Betrag (€)': tatsEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
       rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
     }
-    // Saldo
-    const saldo = liste.reduce((a,e) => a + parseFloat(e.betrag||0), 0);
-    rows.push({ 'Datum': '', 'Kategorie': 'SALDO', 'Beschreibung': '', 'Betrag (€)': saldo, 'Bezahlt von': '' });
+    // Saldo (nur tatsächliche Einnahmen!)
+    const saldo = tatsEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0) + ausgaben.reduce((a,e) => a + parseFloat(e.betrag||0), 0);
+    rows.push({ 'Datum': '', 'Kategorie': 'SALDO (Tatsächl. Einnahmen − Ausgaben)', 'Beschreibung': '', 'Betrag (€)': saldo, 'Bezahlt von': '' });
+    rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+    // Voraussichtliche Einnahmen (nur Info, kein Einfluss auf Saldo)
+    if (vorausEinn.length > 0) {
+      rows.push({ 'Datum': '── VORAUSSICHTLICHE EINNAHMEN (nur Abgleich) ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
+      vorausEinn.forEach(e => rows.push(eintragToRow(e)));
+      rows.push({ 'Datum': '', 'Kategorie': 'Summe Voraussichtliche Einnahmen', 'Beschreibung': '', 'Betrag (€)': vorausEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
+      const diff = tatsEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0) - vorausEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0);
+      rows.push({ 'Datum': '', 'Kategorie': 'Differenz (Tatsächl. − Voraussichtl.)', 'Beschreibung': '', 'Betrag (€)': diff, 'Bezahlt von': '' });
+    }
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = cols;
     return ws;
