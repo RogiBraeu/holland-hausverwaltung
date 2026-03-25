@@ -294,7 +294,6 @@
     letter-spacing: 0.3px;
   }
   .filter-chip.active { background: var(--sea); color: #fff; border-color: var(--sea); }
-  /* Kategorie-Chips: leicht farbig im Ruhezustand */
   .filter-chip.cat-energie     { background: #fff3cd; color: #856404; border-color: #f0d878; }
   .filter-chip.cat-steuern     { background: #f8d7da; color: #721c24; border-color: #f0b8bd; }
   .filter-chip.cat-reparatur   { background: #d4edda; color: #155724; border-color: #a8d5b5; }
@@ -305,7 +304,6 @@
   .filter-chip.cat-einnahmen   { background: #d4f5e2; color: #0a5c36; border-color: #8ed4b0; }
   .filter-chip.cat-voraussichtliche-einnahmen { background: #fff8e1; color: #8a6200; border-color: #f0d878; }
   .filter-chip.cat-tatsächliche-einnahmen { background: #d4f5e2; color: #0a5c36; border-color: #8ed4b0; }
-  /* Aktiv: kräftige Farbe */
   .filter-chip.cat-energie.active     { background: #856404; color: #fff; border-color: #856404; }
   .filter-chip.cat-steuern.active     { background: #721c24; color: #fff; border-color: #721c24; }
   .filter-chip.cat-reparatur.active   { background: #155724; color: #fff; border-color: #155724; }
@@ -438,13 +436,11 @@ let authToken = null;
 
 // ── AUTH FUNKTIONEN ───────────────────────────────────────────────────────
 async function checkSession() {
-  // Prüfe ob ein Auth Code in der URL ist (Invite/Recovery Link)
   const hashParams = new URLSearchParams(window.location.hash.substring(1));
   const accessToken = hashParams.get('access_token');
   const type = hashParams.get('type');
   
   if (accessToken) {
-    // Token aus URL direkt nutzen
     const { data, error } = await supabaseClient.auth.setSession({
       access_token: accessToken,
       refresh_token: hashParams.get('refresh_token') || ''
@@ -453,7 +449,6 @@ async function checkSession() {
       currentUser = data.session.user;
       authToken = data.session.access_token;
       window.history.replaceState({}, '', window.location.pathname);
-      // Bei Password Recovery → Passwort setzen Dialog zeigen
       if (type === 'recovery') {
         showPasswordReset();
         return true;
@@ -462,7 +457,6 @@ async function checkSession() {
     }
   }
   
-  // Normale Session prüfen
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     currentUser = session.user;
@@ -473,7 +467,6 @@ async function checkSession() {
 }
 
 function showPasswordReset() {
-  // Zeige Passwort setzen Dialog
   const overlay = document.getElementById('login-overlay');
   overlay.style.display = 'flex';
   overlay.innerHTML = `
@@ -514,16 +507,13 @@ async function login(email, password) {
   if (error) return { ok: false, error: error.message };
   currentUser = data.user;
   authToken = data.session.access_token;
-  console.log('Login OK, Token:', authToken ? authToken.substring(0,20) + '...' : 'FEHLT');
   return { ok: true };
 }
 
-// Auth State Listener – Token immer aktuell halten
 supabaseClient.auth.onAuthStateChange((event, session) => {
   if (session) {
     authToken = session.access_token;
     currentUser = session.user;
-    console.log('Auth State:', event, '– Token aktualisiert');
   } else {
     authToken = null;
     currentUser = null;
@@ -569,7 +559,6 @@ async function loadAusgaben() {
     return data;
   } catch(e) { return getLokal(); }
 }
-
 
 async function deleteAusgabe(id) {
   try {
@@ -667,7 +656,6 @@ async function speichern() {
 
   if (!datum) { toast('⚠️ Bitte Datum eingeben'); return; }
   if (!betrag || betrag <= 0) { toast('⚠️ Bitte gültigen Betrag eingeben'); return; }
-  // Kategorie optional
 
   const istEinnahme = kategorie === 'Tatsächliche Einnahmen' || kategorie === 'Voraussichtliche Einnahmen';
   const entry = { datum, betrag: istEinnahme ? Math.abs(betrag) : -Math.abs(betrag), kategorie, beschreibung, von };
@@ -730,7 +718,7 @@ async function renderListe(main, reload = true) {
   if (filterKat !== 'Alle') gefiltert = gefiltert.filter(e => e.kategorie === filterKat);
 
   main.innerHTML = `
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
     <div class="summe-box" style="margin-bottom:0;padding:12px 14px;">
       <div>
         <div class="summe-label" style="font-size:10px;">💸 Ausgaben</div>
@@ -745,13 +733,13 @@ async function renderListe(main, reload = true) {
       </div>
       <div class="summe-value" style="font-size:17px;">+${summeVoraus.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
-      <div>
-        <div class="summe-label" style="font-size:10px;">✅ Tatsächlich</div>
-        <div class="summe-count">${tatsEinn.length} Einträge</div>
-      </div>
-      <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
+  </div>
+  <div class="summe-box" style="margin-bottom:16px;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+    <div>
+      <div class="summe-label" style="font-size:10px;">✅ Tatsächliche Einnahmen</div>
+      <div class="summe-count">${tatsEinn.length} Einträge</div>
     </div>
+    <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
   </div>
 
   ${jahre.length > 1 ? `
@@ -824,7 +812,7 @@ async function renderJahrAnsicht(main) {
     const summeAusg = ausgabenJ.reduce((a, e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
     const summeTats = tatsJ.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
     const summeVoraus = vorausJ.reduce((a, e) => a + parseFloat(e.betrag||0), 0);
-    const saldo = summeTats - summeAusg; // nur tatsächliche zählen!
+    const saldo = summeTats - summeAusg;
     const perKat = {};
     KATEGORIEN.forEach(k => perKat[k] = 0);
     ausgabenJ.forEach(e => { const k = e.kategorie||'Sonstiges'; if(perKat[k]!==undefined) perKat[k] += Math.abs(parseFloat(e.betrag||0)); });
@@ -916,7 +904,6 @@ function bearbeiten(id) {
     document.getElementById('f_kategorie').value = e.kategorie || '';
     document.getElementById('f_beschreibung').value = e.beschreibung || '';
     document.getElementById('f_von').value = e.von || '';
-    // Speichern-Button zu Update ändern
     const btn = document.querySelector('.btn.btn-primary');
     btn.textContent = '💾 Eintrag aktualisieren';
     btn.onclick = async () => {
@@ -1029,23 +1016,19 @@ function exportExcel() {
     const tatsEinn = liste.filter(e => e.kategorie === 'Tatsächliche Einnahmen');
     const vorausEinn = liste.filter(e => e.kategorie === 'Voraussichtliche Einnahmen');
     const rows = [];
-    // Ausgaben-Block
     rows.push({ 'Datum': '── AUSGABEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
     ausgaben.forEach(e => rows.push(eintragToRow(e)));
     rows.push({ 'Datum': '', 'Kategorie': 'Summe Ausgaben', 'Beschreibung': '', 'Betrag (€)': ausgaben.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
     rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
-    // Tatsächliche Einnahmen
     if (tatsEinn.length > 0) {
       rows.push({ 'Datum': '── TATSÄCHLICHE EINNAHMEN ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
       tatsEinn.forEach(e => rows.push(eintragToRow(e)));
       rows.push({ 'Datum': '', 'Kategorie': 'Summe Tatsächliche Einnahmen', 'Beschreibung': '', 'Betrag (€)': tatsEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0), 'Bezahlt von': '' });
       rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
     }
-    // Saldo (nur tatsächliche Einnahmen!)
     const saldo = tatsEinn.reduce((a,e) => a + parseFloat(e.betrag||0), 0) + ausgaben.reduce((a,e) => a + parseFloat(e.betrag||0), 0);
     rows.push({ 'Datum': '', 'Kategorie': 'SALDO (Tatsächl. Einnahmen − Ausgaben)', 'Beschreibung': '', 'Betrag (€)': saldo, 'Bezahlt von': '' });
     rows.push({ 'Datum': '', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
-    // Voraussichtliche Einnahmen (nur Info, kein Einfluss auf Saldo)
     if (vorausEinn.length > 0) {
       rows.push({ 'Datum': '── VORAUSSICHTLICHE EINNAHMEN (nur Abgleich) ──', 'Kategorie': '', 'Beschreibung': '', 'Betrag (€)': '', 'Bezahlt von': '' });
       vorausEinn.forEach(e => rows.push(eintragToRow(e)));
@@ -1103,13 +1086,11 @@ async function doLogin() {
     hideLogin();
     eintraege = getLokal();
     render();
-    keepAlive(); // erst nach Login!
   } else {
     errEl.textContent = '❌ ' + (result.error || 'Login fehlgeschlagen');
   }
 }
 
-// Enter Taste im Login
 document.getElementById('login-password').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') doLogin();
 });
@@ -1120,7 +1101,6 @@ async function init() {
     hideLogin();
     eintraege = getLokal();
     render();
-    keepAlive(); // erst nach Login!
   } else {
     showLogin();
   }
@@ -1128,42 +1108,6 @@ async function init() {
 
 init();
 
-// ── SUPABASE WACHHALT (bei jedem Öffnen) ─────────────────────────────────
-async function keepAlive() {
-  try {
-    // Dummy Eintrag schreiben
-    const res = await fetch(`${SUPA_URL}/rest/v1/ausgaben`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + (authToken || SUPA_KEY),
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
-        datum: new Date().toLocaleDateString('de-DE'),
-        betrag: -0.01,
-        kategorie: 'Sonstiges',
-        beschreibung: '_keepalive',
-        von: '_system'
-      })
-    });
-    if (res.ok) {
-      const rows = await res.json();
-      const id = rows[0]?.id;
-      // Sofort wieder löschen
-      if (id) {
-        await fetch(`${SUPA_URL}/rest/v1/ausgaben?id=eq.${id}`, {
-          method: 'DELETE',
-          headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (authToken || SUPA_KEY) }
-        });
-      }
-      console.log('Supabase keepalive erfolgreich');
-    }
-  } catch(e) { console.log('keepalive fehlgeschlagen:', e); }
-}
-
-// keepAlive wird nach Login aufgerufen
 </script>
 </body>
 </html>
