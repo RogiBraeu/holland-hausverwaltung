@@ -379,6 +379,38 @@
   }
   .login-error { color: #c62828; font-size: 12px; text-align: center; margin-top: 10px; min-height: 18px; }
 
+  /* UPDATE BANNER */
+  .update-banner {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(120px);
+    background: var(--sea2);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    transition: transform 0.4s ease;
+    z-index: 1000;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .update-banner.show { transform: translateX(-50%) translateY(0); }
+  .update-banner-btn {
+    background: #fff;
+    color: var(--sea2);
+    border: none;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
 </style>
 </head>
 <body>
@@ -420,6 +452,10 @@
 <div class="main" id="main"></div>
 
 <div class="toast" id="toast"></div>
+<div class="update-banner" id="update-banner">
+  🆕 Update verfügbar!
+  <button class="update-banner-btn" onclick="applyUpdate()">Jetzt laden</button>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1107,6 +1143,50 @@ async function init() {
 }
 
 init();
+
+// ── SERVICE WORKER REGISTRIERUNG ──────────────────────────────────────────
+let newWorker = null;
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+
+    // Prüfen ob beim Laden schon ein wartender SW da ist
+    if (reg.waiting) {
+      showUpdateBanner(reg.waiting);
+    }
+
+    // Neuer SW wurde gefunden und installiert
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing;
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          // Neuer SW wartet → Banner zeigen
+          showUpdateBanner(installing);
+        }
+      });
+    });
+
+    // Alle 60 Sekunden auf Updates prüfen (während App offen ist)
+    setInterval(() => reg.update(), 60000);
+
+  }).catch(err => console.log('SW Fehler:', err));
+
+  // Wenn SW übernimmt → Seite neu laden
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
+}
+
+function showUpdateBanner(worker) {
+  newWorker = worker;
+  document.getElementById('update-banner').classList.add('show');
+}
+
+function applyUpdate() {
+  if (newWorker) {
+    newWorker.postMessage('skipWaiting');
+  }
+}
 
 </script>
 </body>
