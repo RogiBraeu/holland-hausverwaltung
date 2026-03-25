@@ -1,6 +1,6 @@
 // ── SERVICE WORKER – Ferienhaus Holland ──────────────────────────────────
 // Version hochzählen bei jedem Update der App!
-const CACHE_NAME = 'ferienhaus-v1';
+const CACHE_NAME = 'ferienhaus-v2';
 
 const ASSETS = [
   './',

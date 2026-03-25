@@ -753,8 +753,9 @@ async function renderListe(main, reload = true) {
   let gefiltert = basisGefiltert;
   if (filterKat !== 'Alle') gefiltert = gefiltert.filter(e => e.kategorie === filterKat);
 
+  const saldo = summeTats - summeAusgaben;
   main.innerHTML = `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
     <div class="summe-box" style="margin-bottom:0;padding:12px 14px;">
       <div>
         <div class="summe-label" style="font-size:10px;">💸 Ausgaben</div>
@@ -769,13 +770,20 @@ async function renderListe(main, reload = true) {
       </div>
       <div class="summe-value" style="font-size:17px;">+${summeVoraus.toFixed(2).replace('.',',')} €</div>
     </div>
-  </div>
-  <div class="summe-box" style="margin-bottom:16px;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
-    <div>
-      <div class="summe-label" style="font-size:10px;">✅ Tatsächliche Einnahmen</div>
-      <div class="summe-count">${tatsEinn.length} Einträge</div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+      <div>
+        <div class="summe-label" style="font-size:10px;">✅ Tatsächlich</div>
+        <div class="summe-count">${tatsEinn.length} Einträge</div>
+      </div>
+      <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,${saldo >= 0 ? '#1a5c8a,#2a7ab0' : '#8a2020,#b03030'});">
+      <div>
+        <div class="summe-label" style="font-size:10px;">📊 Saldo</div>
+        <div class="summe-count">Tatsächl. − Ausgaben</div>
+      </div>
+      <div class="summe-value" style="font-size:17px;">${saldo >= 0 ? '+' : '−'}${Math.abs(saldo).toFixed(2).replace('.',',')} €</div>
+    </div>
   </div>
 
   ${jahre.length > 1 ? `
@@ -859,7 +867,7 @@ async function renderJahrAnsicht(main) {
         <span style="margin-left:auto;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--accent);">${ej.length} Einträge</span>
       </div>
       <div class="card-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
           <div style="background:#fef5f0;border-radius:8px;padding:8px 10px;border:1px solid #f0d0c0;">
             <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">💸 Ausgaben</div>
             <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--sea2);margin-top:2px;">−${summeAusg.toFixed(2).replace('.',',')} €</div>
@@ -872,10 +880,10 @@ async function renderJahrAnsicht(main) {
             <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">✅ Tatsächlich</div>
             <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#0a5c36;margin-top:2px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
           </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:${saldo >= 0 ? '#f0faf4' : '#fef5f0'};margin-bottom:12px;">
-          <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Saldo ${jahr} <span style="font-weight:400;font-size:10px;">(Tatsächl. Einnahmen − Ausgaben)</span></span>
-          <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:${saldo >= 0 ? '#0a5c36' : 'var(--red)'};">${saldo >= 0 ? '+' : ''}${saldo.toFixed(2).replace('.',',')} €</span>
+          <div style="background:${saldo >= 0 ? '#e8f4ff' : '#fef0f0'};border-radius:8px;padding:8px 10px;border:1px solid ${saldo >= 0 ? '#a0c8e8' : '#f0b8b8'};">
+            <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">📊 Saldo</div>
+            <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:${saldo >= 0 ? '#1a5c8a' : '#8a2020'};margin-top:2px;">${saldo >= 0 ? '+' : '−'}${Math.abs(saldo).toFixed(2).replace('.',',')} €</div>
+          </div>
         </div>
         ${KATEGORIEN.filter(k => perKat[k] > 0).map(k => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
@@ -899,8 +907,9 @@ async function renderJahrAnsicht(main) {
   const gesamtAusg = eintraege.filter(e => parseFloat(e.betrag||0) < 0).reduce((a,e) => a + Math.abs(parseFloat(e.betrag||0)), 0);
   const gesamtTats = eintraege.filter(e => e.kategorie === 'Tatsächliche Einnahmen').reduce((a,e) => a + parseFloat(e.betrag||0), 0);
   const gesamtVoraus = eintraege.filter(e => e.kategorie === 'Voraussichtliche Einnahmen').reduce((a,e) => a + parseFloat(e.betrag||0), 0);
+  const gesamtSaldo = gesamtTats - gesamtAusg;
   html = `
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
     <div class="summe-box" style="margin-bottom:0;padding:12px 14px;">
       <div><div class="summe-label" style="font-size:10px;">💸 Alle Ausgaben</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
       <div class="summe-value" style="font-size:17px;">−${gesamtAusg.toFixed(2).replace('.',',')} €</div>
@@ -912,6 +921,10 @@ async function renderJahrAnsicht(main) {
     <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
       <div><div class="summe-label" style="font-size:10px;">✅ Tatsächlich</div><div class="summe-count">${jahre.length} Jahr${jahre.length!==1?'e':''}</div></div>
       <div class="summe-value" style="font-size:17px;">+${gesamtTats.toFixed(2).replace('.',',')} €</div>
+    </div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,${gesamtSaldo >= 0 ? '#1a5c8a,#2a7ab0' : '#8a2020,#b03030'});">
+      <div><div class="summe-label" style="font-size:10px;">📊 Saldo Gesamt</div><div class="summe-count">Tatsächl. − Ausgaben</div></div>
+      <div class="summe-value" style="font-size:17px;">${gesamtSaldo >= 0 ? '+' : '−'}${Math.abs(gesamtSaldo).toFixed(2).replace('.',',')} €</div>
     </div>
   </div>` + html;
 
@@ -1150,6 +1163,9 @@ let newWorker = null;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(reg => {
 
+    // Sofort auf Update prüfen beim Laden
+    reg.update();
+
     // Prüfen ob beim Laden schon ein wartender SW da ist
     if (reg.waiting) {
       showUpdateBanner(reg.waiting);
@@ -1158,22 +1174,32 @@ if ('serviceWorker' in navigator) {
     // Neuer SW wurde gefunden und installiert
     reg.addEventListener('updatefound', () => {
       const installing = reg.installing;
+      if (!installing) return;
       installing.addEventListener('statechange', () => {
-        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-          // Neuer SW wartet → Banner zeigen
-          showUpdateBanner(installing);
+        if (installing.state === 'installed') {
+          if (navigator.serviceWorker.controller) {
+            // Neuer SW wartet → Banner zeigen
+            showUpdateBanner(installing);
+          } else {
+            // Erster SW installiert → kein Banner nötig
+            console.log('SW erstmalig installiert');
+          }
         }
       });
     });
 
-    // Alle 60 Sekunden auf Updates prüfen (während App offen ist)
-    setInterval(() => reg.update(), 60000);
+    // Alle 30 Sekunden auf Updates prüfen (während App offen ist)
+    setInterval(() => reg.update(), 30000);
 
   }).catch(err => console.log('SW Fehler:', err));
 
   // Wenn SW übernimmt → Seite neu laden
+  let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.location.reload();
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
   });
 }
 
