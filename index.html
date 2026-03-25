@@ -753,8 +753,9 @@ async function renderListe(main, reload = true) {
   let gefiltert = basisGefiltert;
   if (filterKat !== 'Alle') gefiltert = gefiltert.filter(e => e.kategorie === filterKat);
 
+  const saldo = summeTats - summeAusgaben;
   main.innerHTML = `
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
     <div class="summe-box" style="margin-bottom:0;padding:12px 14px;">
       <div>
         <div class="summe-label" style="font-size:10px;">💸 Ausgaben</div>
@@ -769,13 +770,20 @@ async function renderListe(main, reload = true) {
       </div>
       <div class="summe-value" style="font-size:17px;">+${summeVoraus.toFixed(2).replace('.',',')} €</div>
     </div>
-  </div>
-  <div class="summe-box" style="margin-bottom:16px;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
-    <div>
-      <div class="summe-label" style="font-size:10px;">✅ Tatsächliche Einnahmen</div>
-      <div class="summe-count">${tatsEinn.length} Einträge</div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,#0a5c36,#1a8a52);">
+      <div>
+        <div class="summe-label" style="font-size:10px;">✅ Tatsächlich</div>
+        <div class="summe-count">${tatsEinn.length} Einträge</div>
+      </div>
+      <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
     </div>
-    <div class="summe-value" style="font-size:17px;">+${summeTats.toFixed(2).replace('.',',')} €</div>
+    <div class="summe-box" style="margin-bottom:0;padding:12px 14px;background:linear-gradient(135deg,${saldo >= 0 ? '#1a5c8a,#2a7ab0' : '#8a2020,#b03030'});">
+      <div>
+        <div class="summe-label" style="font-size:10px;">📊 Saldo</div>
+        <div class="summe-count">Tatsächl. − Ausgaben</div>
+      </div>
+      <div class="summe-value" style="font-size:17px;">${saldo >= 0 ? '+' : '−'}${Math.abs(saldo).toFixed(2).replace('.',',')} €</div>
+    </div>
   </div>
 
   ${jahre.length > 1 ? `
